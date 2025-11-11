@@ -5,9 +5,37 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- 1. TAILWIND STYLES (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <title>GuardTrade MVP</title>
+    <!-- 2. ADDED: Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+    <!-- 3. ADDED: Tailwind Configuration -->
+    <!-- This tells Tailwind to use your custom colors and fonts -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-lightest': '#EAF0CE',
+              'brand-light': '#C0C5C1',
+              'brand-gray-medium': '#7D8491',
+              'brand-dark': '#574B60',
+              'brand-darkest': '#3F334D',
+            },
+            fontFamily: {
+              'sans': ['Inter', 'sans-serif'],
+              'serif': ['DM Serif Text', 'serif'],
+            },
+          },
+        },
+      };
+    </script>
+    
+    <title>GuardTrade</title>
   </head>
   <body>
     <div id="root"></div>

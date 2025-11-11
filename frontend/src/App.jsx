@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { SDK } from '@somnia-chain/streams'; // <--- GOOD! We are using the SDK
+import { useState, useEffect, useCallback } from 'react';
+// import { SDK } from '@somnia-chain/streams'; // We are NOT using the SDK
 import { createPublicClient, http, defineChain, createWalletClient, custom } from 'viem';
 import { ethers } from 'ethers';
+import GuardTradeLogo from './GuardTradeLogo.png';
+
 
 // --- ABIs (Manually copy these from your artifacts/contracts/...) ---
 // I've pasted them here for you to make the hackathon setup faster.
@@ -42,50 +44,32 @@ const somniaTestnet = defineChain({
 // Risk Level Enum for display
 const RISK_LEVELS = ["Safe", "Warning", "Critical", "Immediate Risk"];
 
+// Create the Public Client *outside* the component.
+const publicClient = createPublicClient({
+  chain: somniaTestnet,
+  transport: http(),
+});
+
+// Helper function to truncate wallet addresses
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+};
+
 function App() {
-  const [sdk, setSdk] = useState(null); // <--- GOOD! We are using the SDK
   const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
-  const [status, setStatus] = useState('Connecting to Somnia...');
+  const [status, setStatus] = useState('Please connect your wallet.');
 
   // Live Data State
   const [livePrice, setLivePrice] = useState(3000);
-  const [positions, setPositions] = useState({}); // { id: { ...positionData } }
-  const [alerts, setAlerts] = useState({}); // { positionId: "RiskLevel" }
+  const [positions, setPositions] = useState({});
+  const [alerts, setAlerts] = useState({});
 
-  // --- 2. INITIALIZE SDK & WALLET ---
+  // --- 2. INITIALIZE PUBLIC DATA (No Wallet Needed) ---
   useEffect(() => {
-    async function init() {
+    async function initPublicData() {
       try {
-        // A. Setup Browser Wallet (MetaMask)
-        if (!window.ethereum) {
-          setStatus('MetaMask not detected. Please install it.');
-          return;
-        }
-        const walletClient = createWalletClient({
-          chain: somniaTestnet,
-          transport: custom(window.ethereum),
-        });
-        const [accountAddress] = await walletClient.requestAddresses();
-        setAccount(accountAddress);
-        setWallet(walletClient);
-
-        // B. Setup Viem Public Client (for reading)
-        const publicClient = createPublicClient({
-          chain: somniaTestnet,
-          transport: http(),
-        });
-
-        // C. Initialize Somnia SDK
-        const somniaSdk = new SDK({
-          public: publicClient,
-          // We pass the wallet client for write operations
-          wallet: walletClient, 
-        });
-        setSdk(somniaSdk);
-        setStatus('Somnia SDK Initialized. Subscribing to streams...');
-
-        // D. Get initial data
         const initialPrice = await publicClient.readContract({
           address: CONTRACT_ADDRESSES.oracle,
           abi: PriceOracleABI.abi,
@@ -93,23 +77,91 @@ function App() {
           args: ['ETH']
         });
         setLivePrice(Number(initialPrice) / 10**8);
-
-      } catch (err) { 
-        console.error("Initialization error:", err);
-        setStatus('Error connecting. Check console.');
+        setStatus('Ready to connect.');
+      } catch (err) {
+        console.error("Public init error:", err);
+        setStatus('Error loading public data. Check console.');
       }
     }
-    init();
+    initPublicData();
+  }, []); // Runs once on load
+
+  // --- 3. WALLET FUNCTIONS (Connect & Disconnect) ---
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      setStatus('MetaMask not detected. Please install it.');
+      return;
+    }
+    
+    setStatus('Connecting to MetaMask...');
+    try {
+      const walletClient = createWalletClient({
+        chain: somniaTestnet,
+        transport: custom(window.ethereum),
+      });
+
+      // Force account selection
+      await walletClient.requestPermissions({ eth_accounts: {} });
+      const [accountAddress] = await walletClient.getAddresses();
+      
+      setAccount(accountAddress);
+      setWallet(walletClient);
+      
+      setStatus('Wallet Connected! Subscribing to streams...');
+    } catch (err) {
+      console.error("Wallet connection error:", err);
+      setStatus('Error connecting wallet. Check console.');
+    }
+  };
+
+  const disconnectWallet = useCallback(() => {
+    setWallet(null);
+    setAccount(null);
+    setPositions({});
+    setAlerts({});
+    setStatus('Wallet disconnected. Please connect again.');
   }, []);
 
-  // --- 3. SUBSCRIBE TO STREAMS (THE CORE!) ---
+  // Listen for account changes in MetaMask
   useEffect(() => {
-    if (!sdk || !account) return;
-    
-    const publicClient = sdk.public; // <--- GOOD! Using SDK's client
+    const { ethereum } = window;
+    if (!ethereum) return; // No wallet
 
-    // A. Price Stream (from PRD)
-    // We use viem's watchContractEvent, which is powered by Somnia's fast nodes
+    const handleAccountsChanged = (accounts) => {
+      if (accounts.length > 0) {
+        if (account && accounts[0].toLowerCase() !== account.toLowerCase()) {
+          console.log("MetaMask account switched to:", accounts[0]);
+          setAccount(accounts[0]);
+          const newWalletClient = createWalletClient({
+            chain: somniaTestnet,
+            transport: custom(window.ethereum),
+            account: accounts[0],
+          });
+          setWallet(newWalletClient);
+        }
+      } else {
+        if (account) {
+          console.log("MetaMask user disconnected.");
+          disconnectWallet();
+        }
+      }
+    };
+
+    ethereum.on('accountsChanged', handleAccountsChanged);
+    return () => {
+      ethereum.removeListener('accountsChanged', handleAccountsChanged);
+    };
+  }, [account, disconnectWallet]);
+
+  // --- 4. SUBSCRIBE TO STREAMS (THE CORE!) ---
+  useEffect(() => {
+    if (!account) {
+      setPositions({});
+      setAlerts({});
+      return;
+    }
+    
+    // A. Price Stream
     const unsubPrice = publicClient.watchContractEvent({
       address: CONTRACT_ADDRESSES.oracle,
       abi: PriceOracleABI.abi,
@@ -117,7 +169,7 @@ function App() {
       onLogs: (logs) => {
         logs.forEach(data => {
           if (data.args.asset === 'ETH') {
-             console.log("🔥 Price Stream Event:", data);
+             console.log("Price Stream Event:", data);
              const newPrice = Number(data.args.price) / 10**8;
              setLivePrice(newPrice);
           }
@@ -125,22 +177,21 @@ function App() {
       }
     });
 
-    // B. Position Stream (from PRD)
+    // B. Position Stream
     const unsubPos = publicClient.watchContractEvent({
       address: CONTRACT_ADDRESSES.manager,
       abi: LeverageManagerABI.abi,
       eventName: 'PositionUpdate',
       onLogs: (logs) => {
         logs.forEach(data => {
-          // Check if the event is for us
           if (data.args.owner.toLowerCase() === account.toLowerCase()) {
-            console.log("🔥 Position Stream Event:", data);
+            console.log("Position Stream Event:", data);
             const { positionId, collateral, healthFactor } = data.args;
             const posId = Number(positionId);
             setPositions(prev => ({
               ...prev,
               [posId]: {
-                ...prev[posId], // Keep existing data like entryPrice
+                ...prev[posId], 
                 id: posId,
                 collateral: Number(collateral) / 10**8,
                 healthFactor: Number(healthFactor) / 10**18,
@@ -151,16 +202,15 @@ function App() {
       }
     });
 
-    // C. Risk Stream (from PRD)
+    // C. Risk Stream
     const unsubRisk = publicClient.watchContractEvent({
       address: CONTRACT_ADDRESSES.guardian,
       abi: GuardianABI.abi,
       eventName: 'RiskThresholdBreach',
       onLogs: (logs) => {
         logs.forEach(data => {
-          console.log("🔥 Risk Stream Event:", data);
+          console.log("Risk Stream Event:", data);
           const { positionId, riskLevel } = data.args;
-          // Check if this alert is for one of our positions
           setPositions(prev => {
             if (prev[Number(positionId)]) {
               setAlerts(prevAlerts => ({
@@ -174,7 +224,7 @@ function App() {
       }
     });
 
-    setStatus('✅ Subscribed to Price, Position, and Risk streams!');
+    setStatus('Subscribed to real-time data streams.');
 
     // Cleanup subscriptions
     return () => {
@@ -183,16 +233,15 @@ function App() {
       unsubRisk();
     };
 
-  }, [sdk, account]);
+  }, [account]);
 
-  // --- 4. CONTRACT INTERACTION FUNCTIONS ---
+  // --- 5. CONTRACT INTERACTION FUNCTIONS ---
 
   const openPosition = async () => {
-    if (!wallet || !account || !sdk) return alert("Wallet not connected");
+    if (!wallet || !account) return alert("Wallet not connected");
     setStatus("Opening position...");
     try {
-      // 1. Simulate the contract call
-      const { request } = await sdk.public.simulateContract({
+      const { request } = await publicClient.simulateContract({
         account,
         address: CONTRACT_ADDRESSES.manager,
         abi: LeverageManagerABI.abi,
@@ -203,26 +252,18 @@ function App() {
           0 // PositionType.Long
         ]
       });
-      
-      // 2. Send the transaction
       const hash = await wallet.writeContract(request);
       setStatus("Transaction sent, awaiting confirmation...");
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus("Position opened successfully. Dashboard will update.");
       
-      // 3. Wait for it to be mined
-      await sdk.public.waitForTransactionReceipt({ hash });
-      
-      // We don't need to update state here.
-      // The `PositionUpdate` event will fire and our stream will catch it!
-      setStatus("Position opened! Stream will update dashboard.");
-      
-      // As a fallback, let's grab the entry price
-      const newPosId = (await sdk.public.readContract({
+      const newPosId = (await publicClient.readContract({
         address: CONTRACT_ADDRESSES.manager,
         abi: LeverageManagerABI.abi,
         functionName: 'nextPositionId'
-      })) - BigInt(1); // <--- TYPO FIX: Changed '1AF' to '1'
+      })) - BigInt(1);
 
-      const posData = await sdk.public.readContract({
+      const posData = await publicClient.readContract({
         address: CONTRACT_ADDRESSES.manager,
         abi: LeverageManagerABI.abi,
         functionName: 'positions',
@@ -244,24 +285,19 @@ function App() {
   };
 
   const simulatePrice = async (newPrice) => {
-    if (!wallet || !account || !sdk) return alert("Wallet not connected");
-    setStatus(`Simulating price: $${newPrice}...`);
+    if (!wallet || !account) return alert("Wallet not connected");
+    setStatus(`Simulating price change: $${newPrice}...`);
     try {
-      // 1. Simulate the contract call
-      const { request } = await sdk.public.simulateContract({
+      const { request } = await publicClient.simulateContract({
         account,
         address: CONTRACT_ADDRESSES.oracle,
         abi: PriceOracleABI.abi,
         functionName: 'setPrice',
         args: ['ETH', BigInt(newPrice * 10**8)]
       });
-      
-      // 2. Send the transaction
       const hash = await wallet.writeContract(request);
-      await sdk.public.waitForTransactionReceipt({ hash });
-      
-      // The `PriceUpdate` stream will handle the state change.
-      setStatus(`Price set to $${newPrice}. Stream will update P&L.`);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus(`Price set to $${newPrice}. Streams will update dashboard.`);
     } catch (err) { 
       console.error("Simulate price error:", err);
       setStatus("Error setting price. Check console.");
@@ -269,160 +305,242 @@ function App() {
   };
 
   const checkRisk = async (positionId) => {
-    if (!wallet || !account || !sdk) return alert("Wallet not connected");
+    if (!wallet || !account) return alert("Wallet not connected");
     setStatus(`Checking risk for position ${positionId}...`);
     try {
-      // 1. Simulate the contract call
-      const { request } = await sdk.public.simulateContract({
+      const { request } = await publicClient.simulateContract({
         account,
         address: CONTRACT_ADDRESSES.guardian,
         abi: GuardianABI.abi,
         functionName: 'checkRisk',
         args: [BigInt(positionId)]
       });
-      
-      // 2. Send the transaction
       const hash = await wallet.writeContract(request);
-      await sdk.public.waitForTransactionReceipt({ hash });
-      
-      // The `RiskThresholdBreach` stream will handle the state change.
-      setStatus(`Risk check sent. Stream will update alerts.`);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus(`Risk check sent. Alert stream will update status.`);
     } catch (err) { 
       console.error("Check risk error:", err);
       setStatus("Error checking risk. Check console.");
     }
   };
 
-  // --- 5. HELPER & RENDER FUNCTIONS ---
+  // --- 6. HELPER & RENDER FUNCTIONS ---
   
   const getPnl = (position) => {
     if (!position.entryPrice) return 0;
-    // PnL = (CurrentPrice - EntryPrice) * Size
-    // Size = (Collateral * Leverage) / EntryPrice
     const size = (position.collateral * 3) / position.entryPrice;
     const pnl = (livePrice - position.entryPrice) * size;
     return pnl.toFixed(2);
   };
 
   const getRiskColor = (level) => {
-    if (level === "Critical" || level === "Immediate Risk") return 'bg-red-500 text-white';
-    if (level === "Warning") return 'bg-yellow-400 text-black';
-    return 'bg-green-500 text-white';
+    if (level === "Critical" || level === "Immediate Risk") return 'bg-red-600 text-white';
+    if (level === "Warning") return 'bg-yellow-500 text-black';
+    return 'bg-green-600 text-white';
   };
 
+  // --- RENDER: Connect Wallet Page ---
+  if (!account) {
+    return (
+      <div className="min-h-screen bg-brand-darkest text-gray-200 flex items-center justify-center p-8 font-sans">
+        <div className="max-w-xl w-full text-center bg-brand-dark p-10 rounded-lg shadow-2xl">
+          {/* Use the logo here. Assumes logo is in /public/GuardTrade Logo.png */}
+          <img src={GuardTradeLogo} alt="GuardTrade Logo" className="h-16 mx-auto mb-6" />
+          <p className="text-xl text-gray-200 mb-8">
+            A decentralized leverage trading platform using <span className="font-bold text-white">Somnia Data Streams</span> to provide instant position monitoring and proactive liquidation protection.
+          </p>
+          <div className="bg-brand-darkest p-6 rounded-lg text-left mb-8">
+            <h2 className="text-2xl font-serif text-white mb-4">Core Innovation</h2>
+            <p className="text-gray-300 text-base">
+              Traditional platforms liquidate *after* you're undercollateralized. GuardTrade uses real-time data to warn you *before* it happens.
+            </p>
+            <ul className="list-disc list-inside text-gray-300 mt-4 space-y-2 text-base">
+              <li><span className="text-white">Real-Time P&L</span> and Health Factor updates.</li>
+              <li><span className="text-white">Proactive Liquidation Warnings</span> with sub-second latency.</li>
+              <li><span className="text-white">Powered by Somnia</span> for high-speed, low-cost data.</li>
+            </ul>
+          </div>
+          <p className="text-gray-400 mb-6 min-h-5 text-base">{status}</p>
+          <button
+            onClick={connectWallet}
+            className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg"
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: Main App Dashboard ---
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans p-8">
+    <div className="min-h-screen bg-brand-darkest text-gray-200 font-sans p-6 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-cyan-400">GuardTrade</h1>
-          <div className="text-right">
-            <p className="text-sm text-gray-400">{status}</p>
-            <p className="text-xs text-gray-500 truncate w-64">Account: {account}</p>
+        
+        {/* --- Header --- */}
+        <header className="flex flex-col sm:flex-row justify-between items-center mb-8 pb-4 border-b border-brand-dark">
+          {/* Use the logo here as well */}
+          <img src={GuardTradeLogo} alt="GuardTrade Logo" className="h-12" />
+          <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
+            <div className="text-right">
+              <div className="text-base font-mono bg-brand-dark px-3 py-1 rounded-md text-white">
+                {truncateAddress(account)}
+              </div>
+              <p className="text-sm text-gray-400 mt-1 hidden sm:block">{status}</p>
+            </div>
+            <button
+              onClick={connectWallet}
+              className="bg-brand-dark hover:bg-brand-gray-medium text-white text-base font-medium py-2 px-4 rounded-lg transition"
+            >
+              Switch Account
+            </button>
+            <button
+              onClick={disconnectWallet}
+              className="bg-brand-dark hover:bg-red-600 hover:text-white text-white text-base font-medium py-2 px-4 rounded-lg transition"
+            >
+              Disconnect
+            </button>
           </div>
         </header>
 
-        {/* --- ACTIONS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-semibold mb-4">Actions</h2>
-            <button
-              onClick={openPosition}
-              className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 px-4 rounded-lg transition"
-            >
-              Open 3x Long ETH Position ($1000)
-            </button>
-          </div>
+        {/* --- Dashboard Grid --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-semibold mb-4">Demo: Simulate Market</h2>
-            <div className="grid grid-cols-3 gap-2">
+          {/* --- Left Column: Market & Actions --- */}
+          <div className="lg:col-span-1 space-y-6">
+            
+            {/* Live Market Card */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Live Market</h2>
+              <p className="text-sm text-gray-300 uppercase">ETH-USD</p>
+              <p className="text-5xl font-mono font-bold text-white">
+                ${livePrice.toFixed(2)}
+              </p>
+              <p className="text-base text-gray-300 mt-2">Price updates are streamed in real-time from the Somnia network.</p>
+            </div>
+
+            {/* Actions Card */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Actions</h2>
               <button
-                onClick={() => simulatePrice(3000)}
-                className="bg-gray-600 hover:bg-gray-500 py-2 px-3 rounded-lg text-sm"
+                onClick={openPosition}
+                className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg"
               >
-                Set Price (Stable) $3000
+                Open 3x Long ETH Position
               </button>
-              <button
-                onClick={() => simulatePrice(2500)}
-                className="bg-yellow-600 hover:bg-yellow-500 py-2 px-3 rounded-lg text-sm"
-              >
-                Set Price (Warning) $2500
-              </button>
-              <button
-                onClick={() => simulatePrice(2200)}
-                className="bg-red-600 hover:bg-red-500 py-2 px-3 rounded-lg text-sm"
-              >
-                Set Price (CRITICAL) $2200
-              </button>
+              <p className="text-base text-gray-300 mt-3 text-center">This will open a demo position with $1,000 in collateral.</p>
+            </div>
+
+            {/* Demo Card */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Demo: Simulate Price</h2>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => simulatePrice(3000)}
+                  className="bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-2 px-3 rounded-lg text-base transition"
+                >
+                  Stable
+                </button>
+                <button
+                  onClick={() => simulatePrice(2500)}
+                  className="bg-yellow-500 hover:bg-yellow-400 text-black py-2 px-3 rounded-lg text-base transition"
+                >
+                  Warning
+                </button>
+                <button
+                  onClick={() => simulatePrice(2200)}
+                  className="bg-red-600 hover:bg-red-500 text-white py-2 px-3 rounded-lg text-base transition"
+                >
+                  Critical
+                </button>
+              </div>
+              <p className="text-base text-gray-300 mt-3 text-center">Manually trigger price changes to test your position's health.</p>
             </div>
           </div>
-        </div>
 
-        {/* --- DASHBOARD --- */}
-        <div>
-          <h2 className="text-3xl font-semibold mb-4">Real-Time Dashboard</h2>
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-            <h3 className="text-2xl mb-4">Live Market</h3>
-            <p className="text-5xl font-mono font-bold text-cyan-400">
-              ETH: ${livePrice.toFixed(2)}
-            </p>
-          </div>
+          {/* --- Right Column: Positions --- */}
+          <div className="lg:col-span-2">
+            <h2 className="text-3xl font-serif mb-4 text-white">Your Active Positions</h2>
+            
+            {Object.keys(positions).length === 0 ? (
+              // No Positions State
+              <div className="bg-brand-dark p-10 rounded-lg shadow-lg text-center">
+                <p className="text-xl text-white">No active positions.</p>
+                <p className="text-base text-gray-300 mt-2">
+                  Click the "Open 3x Long ETH Position" button on the left to create one and see the real-time data streams in action.
+                </p>
+              </div>
+            ) : (
+              // Positions Grid
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.values(positions).map((pos) => {
+                  const pnl = getPnl(pos);
+                  const alert = alerts[pos.id];
+                  return (
+                    <div key={pos.id} className="bg-brand-dark rounded-lg shadow-lg overflow-hidden flex flex-col">
+                      
+                      {/* --- Risk Alert Banner --- */}
+                      {alert && (
+                        <div className={`p-3 text-center font-bold ${getRiskColor(alert)}`}>
+                          RISK LEVEL: {alert.toUpperCase()}
+                        </div>
+                      )}
 
-          <h3 className="text-2xl font-semibold mb-4">Active Positions</h3>
-          <div className="space-y-4">
-            {Object.keys(positions).length === 0 && (
-              <p className="text-gray-400">No open positions. Open one to start.</p>
+                      {/* --- Position Header --- */}
+                      <div className="p-5 border-b border-brand-darkest">
+                        <h3 className="text-xl font-serif font-bold text-white">Position #{pos.id}</h3>
+                        <p className="text-base text-white">3x ETH-USD LONG</p>
+                      </div>
+                      
+                      {/* --- Position Body (Stats) --- */}
+                      <div className="p-5 grid grid-cols-2 gap-5 grow">
+                        <div>
+                          <p className="text-sm text-gray-300 uppercase">Live P&L</p>
+                          <p className={`text-2xl font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            ${pnl}
+                          </p>
+                          <p className="text-sm text-gray-300">Profit/Loss since opening.</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-300 uppercase">Health Factor</p>
+                          <p className="text-2xl font-mono font-bold text-white">
+                            {Math.max(0, pos.healthFactor * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-sm text-gray-300">If this reaches 0%, you are liquidated.</p>
+                        </div>
+                        <div className="col-span-2">
+                          {/* Health Bar */}
+                          <div className="w-full bg-brand-darkest rounded-full h-4">
+                            <div
+                              className="bg-linear-to-r from-red-500 via-yellow-500 to-green-500 h-4 rounded-full"
+                              style={{ width: `${Math.max(0, pos.healthFactor) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-300 uppercase">Collateral</p>
+                          <p className="text-lg font-mono text-white">${pos.collateral?.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-300 uppercase">Entry Price</p>
+                          <p className="text-lg font-mono text-white">${pos.entryPrice?.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      
+                      {/* --- Position Footer (Actions) --- */}
+                      <div className="p-4 bg-brand-darkest mt-auto">
+                        <button 
+                          onClick={() => checkRisk(pos.id)}
+                          className="w-full text-base bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-2 px-3 rounded transition"
+                        >
+                          Manually Check Position Health
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
-
-            {Object.values(positions).map((pos) => {
-              const pnl = getPnl(pos);
-              const alert = alerts[pos.id];
-              return (
-                <div key={pos.id} className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-                  {alert && (
-                    <div className={`p-3 text-center font-bold ${getRiskColor(alert)}`}>
-                      🔥 RISK ALERT: {alert.toUpperCase()}
-                    </div>
-                  )}
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-                    <div>
-                      <div className="text-xs text-gray-400">Position ID</div>
-                      <div className="text-lg font-bold">#{pos.id} (3x LONG)</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Entry Price</div>
-                      <div className="text-lg font-mono">${pos.entryPrice?.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Collateral</div>
-                      <div className="text-lg font-mono">${pos.collateral?.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Live P&L</div>
-                      <div className={`text-lg font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${pnl}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-start md:items-end">
-                      <div className="text-xs text-gray-400 mb-1">Health Factor</div>
-                      <div className="w-full bg-gray-700 rounded-full h-4 mb-2">
-                        <div
-                          className="bg-linear-to-r from-red-500 via-yellow-500 to-green-500 h-4 rounded-full" // <--- TYPO FIX: Changed 'bg-linear-to-r'
-                          style={{ width: `${Math.max(0, pos.healthFactor) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-mono">{Math.max(0, pos.healthFactor * 100).toFixed(1)}%</span>
-                      <button 
-                        onClick={() => checkRisk(pos.id)}
-                        className="mt-2 text-xs bg-cyan-700 hover:bg-cyan-600 py-1 px-2 rounded"
-                      >
-                        Check Risk
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
