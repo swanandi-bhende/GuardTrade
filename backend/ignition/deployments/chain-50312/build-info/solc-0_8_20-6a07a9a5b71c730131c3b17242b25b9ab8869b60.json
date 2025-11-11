@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_20-6a07a9a5b71c730131c3b17242b25b9ab8869b60",
+  "solcVersion": "0.8.20",
+  "solcLongVersion": "0.8.20+commit.a1b79de6",
+  "userSourceNameMap": {
+    "contracts/MockPriceOracle.sol": "project/contracts/MockPriceOracle.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/MockPriceOracle.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.20;\r\n\r\n/**\r\n * @title MockPriceOracle\r\n * @dev A simple mock oracle for the hackathon.\r\n * It allows anyone to set the price of an asset and emits an event.\r\n * This event will be picked up by the `priceStream`.\r\n */\r\ncontract MockPriceOracle {\r\n    // We'll just track one asset (e.g., ETH) for the MVP\r\n    // Prices are stored with 8 decimals (e.g., $3,000.00 = 3000 * 10**8)\r\n    mapping(string => uint256) public assetPrices;\r\n\r\n    /**\r\n     * @dev Emitted when a price is updated.\r\n     * Somnia Data Streams will listen for this.\r\n     */\r\n    event PriceUpdate(string asset, uint256 price);\r\n\r\n    constructor() {\r\n        // Set an initial price for ETH\r\n        assetPrices[\"ETH\"] = 3000 * 10**8;\r\n    }\r\n\r\n    /**\r\n     * @dev Sets the price of an asset.\r\n     * In a real app, this would be secured (e.g., `onlyOwner`).\r\n     * For the hackathon, we leave it open to simulate price changes from the frontend.\r\n     */\r\n    function setPrice(string memory _asset, uint256 _price) external {\r\n        assetPrices[_asset] = _price;\r\n        emit PriceUpdate(_asset, _price);\r\n    }\r\n\r\n    /**\r\n     * @dev Public function to get the price.\r\n     */\r\n    function getPrice(string memory _asset) public view returns (uint256) {\r\n        return assetPrices[_asset];\r\n    }\r\n}"
+      }
+    }
+  }
+}

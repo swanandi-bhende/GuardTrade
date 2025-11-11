@@ -1,0 +1,5 @@
+{
+  "GuardTradeModule#MockPriceOracle": "0x01848F70e8D709891f960B7c7e7F62296CeFB7B5",
+  "GuardTradeModule#LeverageManager": "0x57b26fFb2C9E1858088c2C6f75Bcd7389F7a3708",
+  "GuardTradeModule#Guardian": "0x7D34EbDDea65ac01891DDd7bbce4A802a7982BF1"
+}
