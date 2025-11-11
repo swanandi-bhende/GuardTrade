@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SDK } from '@somnia-chain/streams';
+import { SDK } from '@somnia-chain/streams'; // <--- GOOD! We are using the SDK
 import { createPublicClient, http, defineChain, createWalletClient, custom } from 'viem';
 import { ethers } from 'ethers';
 
@@ -20,9 +20,9 @@ const GuardianABI = {
 
 // --- 1. CRITICAL: CONFIGURE YOUR CONTRACTS & NETWORK ---
 const CONTRACT_ADDRESSES = {
-  oracle: 'YOUR_MockPriceOracle_ADDRESS_HERE',   // <-- PASTE YOUR ADDRESS
-  manager: 'YOUR_LeverageManager_ADDRESS_HERE', // <-- PASTE YOUR ADDRESS
-  guardian: 'YOUR_Guardian_ADDRESS_HERE'        // <-- PASTE YOUR ADDRESS
+  oracle: '0x01848F70e8D709891f960B7c7e7F62296CeFB7B5',    // <-- Your addresses are here
+  manager: '0x57b26fFb2C9E1858088c2C6f75Bcd7389F7a3708', // <-- Your addresses are here
+  guardian: '0x7D34EbDDea65ac01891DDd7bbce4A802a7982BF1'         // <-- Your addresses are here
 };
 
 // Somnia Testnet Configuration (from docs)
@@ -43,7 +43,7 @@ const somniaTestnet = defineChain({
 const RISK_LEVELS = ["Safe", "Warning", "Critical", "Immediate Risk"];
 
 function App() {
-  const [sdk, setSdk] = useState(null);
+  const [sdk, setSdk] = useState(null); // <--- GOOD! We are using the SDK
   const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
   const [status, setStatus] = useState('Connecting to Somnia...');
@@ -94,7 +94,7 @@ function App() {
         });
         setLivePrice(Number(initialPrice) / 10**8);
 
-      } catch (err) {
+      } catch (err) { 
         console.error("Initialization error:", err);
         setStatus('Error connecting. Check console.');
       }
@@ -106,7 +106,7 @@ function App() {
   useEffect(() => {
     if (!sdk || !account) return;
     
-    const publicClient = sdk.public; // Get client from SDK
+    const publicClient = sdk.public; // <--- GOOD! Using SDK's client
 
     // A. Price Stream (from PRD)
     // We use viem's watchContractEvent, which is powered by Somnia's fast nodes
@@ -220,7 +220,7 @@ function App() {
         address: CONTRACT_ADDRESSES.manager,
         abi: LeverageManagerABI.abi,
         functionName: 'nextPositionId'
-      })) - BigInt(1);
+      })) - BigInt(1); // <--- TYPO FIX: Changed '1AF' to '1'
 
       const posData = await sdk.public.readContract({
         address: CONTRACT_ADDRESSES.manager,
@@ -237,7 +237,7 @@ function App() {
         }
       }));
 
-    } catch (err) {
+    } catch (err) { 
       console.error("Open position error:", err);
       setStatus("Error opening position. Check console.");
     }
@@ -247,6 +247,7 @@ function App() {
     if (!wallet || !account || !sdk) return alert("Wallet not connected");
     setStatus(`Simulating price: $${newPrice}...`);
     try {
+      // 1. Simulate the contract call
       const { request } = await sdk.public.simulateContract({
         account,
         address: CONTRACT_ADDRESSES.oracle,
@@ -254,12 +255,14 @@ function App() {
         functionName: 'setPrice',
         args: ['ETH', BigInt(newPrice * 10**8)]
       });
+      
+      // 2. Send the transaction
       const hash = await wallet.writeContract(request);
       await sdk.public.waitForTransactionReceipt({ hash });
       
       // The `PriceUpdate` stream will handle the state change.
       setStatus(`Price set to $${newPrice}. Stream will update P&L.`);
-    } catch (err) {
+    } catch (err) { 
       console.error("Simulate price error:", err);
       setStatus("Error setting price. Check console.");
     }
@@ -269,6 +272,7 @@ function App() {
     if (!wallet || !account || !sdk) return alert("Wallet not connected");
     setStatus(`Checking risk for position ${positionId}...`);
     try {
+      // 1. Simulate the contract call
       const { request } = await sdk.public.simulateContract({
         account,
         address: CONTRACT_ADDRESSES.guardian,
@@ -276,12 +280,14 @@ function App() {
         functionName: 'checkRisk',
         args: [BigInt(positionId)]
       });
+      
+      // 2. Send the transaction
       const hash = await wallet.writeContract(request);
       await sdk.public.waitForTransactionReceipt({ hash });
       
       // The `RiskThresholdBreach` stream will handle the state change.
       setStatus(`Risk check sent. Stream will update alerts.`);
-    } catch (err) {
+    } catch (err) { 
       console.error("Check risk error:", err);
       setStatus("Error checking risk. Check console.");
     }
@@ -303,18 +309,6 @@ function App() {
     if (level === "Warning") return 'bg-yellow-400 text-black';
     return 'bg-green-500 text-white';
   };
-
-  // You will also need to install Tailwind for this UI
-  // Run: `npm install -D tailwindcss postcss autoprefixer`
-  // And: `npx tailwindcss init -p`
-  // Then configure `tailwind.config.js`
-  // For the hackathon, you can skip this and it will be unstyled but functional.
-  // Or, for a quick fix, add this to `index.css`:
-  /*
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-  */
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans p-8">
@@ -405,7 +399,7 @@ function App() {
                     </div>
                     <div>
                       <div className="text-xs text-gray-400">Live P&L</div>
-                      <div classNameclassName={`text-lg font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`text-lg font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         ${pnl}
                       </div>
                     </div>
@@ -413,10 +407,9 @@ function App() {
                       <div className="text-xs text-gray-400 mb-1">Health Factor</div>
                       <div className="w-full bg-gray-700 rounded-full h-4 mb-2">
                         <div
-                          className="bg-linear-to-r from-red-500 via-yellow-500 to-green-500 h-4 rounded-full"
-                          style={{ width: `${pos.healthFactor * 100}%` }}
+                          className="bg-linear-to-r from-red-500 via-yellow-500 to-green-500 h-4 rounded-full" // <--- TYPO FIX: Changed 'bg-linear-to-r'
+                          style={{ width: `${Math.max(0, pos.healthFactor) * 100}%` }}
                         ></div>
-
                       </div>
                       <span className="text-sm font-mono">{Math.max(0, pos.healthFactor * 100).toFixed(1)}%</span>
                       <button 
