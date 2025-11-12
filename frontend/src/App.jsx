@@ -2,20 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 // import { SDK } from '@somnia-chain/streams'; // We are NOT using the SDK
 import { createPublicClient, http, defineChain, createWalletClient, custom } from 'viem';
 import { ethers } from 'ethers';
-import GuardTradeLogo from './GuardTradeLogo.png';
-
 
 // --- ABIs (Manually copy these from your artifacts/contracts/...) ---
 // I've pasted them here for you to make the hackathon setup faster.
 
 const PriceOracleABI = {
-  abi: [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"asset","type":"string"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"PriceUpdate","type":"event"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"assetPrices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"}],"name":"getPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"},{"internalType":"uint256","name":"_price","type":"uint256"}],"name":"setPrice","outputs":[],"stateMutability":"nonpayable","type":"function"}]
+  abi: [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"asset","type":"string"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"PriceUpdate","type":"event"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"assetPrices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"}],"name":"getPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"},{"internalType":"uint256","name":"_price","type":"uint256"}],"name":"setPrice","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+
 };
 const LeverageManagerABI = {
-  abi: [{"inputs":[{"internalType":"address","name":"_oracleAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"uint256","name":"collateral","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"healthFactor","type":"uint256"}],"name":"PositionUpdate","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"getHealthFactor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nextPositionId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_leverage","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"_positionType","type":"uint8"}],"name":"openPosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"positions","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"collateral","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"entryPrice","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"positionType","type":"uint8"},{"internalType":"enum LeverageManager.PositionState","name":"state","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceOracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"updatePosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"userPositions","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]
+abi: [{"inputs":[{"internalType":"address","name":"_oracleAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"uint256","name":"collateral","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"healthFactor","type":"uint256"}],"name":"PositionUpdate","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"getHealthFactor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nextPositionId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_leverage","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"_positionType","type":"uint8"}],"name":"openPosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"positions","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"collateral","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"entryPrice","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"positionType","type":"uint8"},{"internalType":"enum LeverageManager.PositionState","name":"state","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceOracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"updatePosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"userPositions","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}],
 };
 const GuardianABI = {
-  abi: [{"inputs":[{"internalType":"address","name":"_manager","type":"address"},{"internalType":"address","name":"_oracle","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"enum Guardian.RiskLevel","name":"riskLevel","type":"uint8"}],"name":"RiskThresholdBreach","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"checkRisk","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"manager","outputs":[{"internalType":"contract LeverageManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"oracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"}]
+  abi: [{"inputs":[{"internalType":"address","name":"_manager","type":"address"},{"internalType":"address","name":"_oracle","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"enum Guardian.RiskLevel","name":"riskLevel","type":"uint8"}],"name":"RiskThresholdBreach","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"checkRisk","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"manager","outputs":[{"internalType":"contract LeverageManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"oracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"}],
 };
 // --- END ABIs ---
 
@@ -274,7 +273,8 @@ function App() {
         ...prev,
         [Number(newPosId)]: {
           ...prev[Number(newPosId)],
-          entryPrice: Number(posData.entryPrice) / 10**8
+          entryPrice: Number(posData.entryPrice) / 10**8,
+          leverage: 3 // Hardcoding this as we know it from openPosition
         }
       }));
 
@@ -328,15 +328,40 @@ function App() {
   
   const getPnl = (position) => {
     if (!position.entryPrice) return 0;
-    const size = (position.collateral * 3) / position.entryPrice;
+    const size = (position.collateral * position.leverage) / position.entryPrice;
     const pnl = (livePrice - position.entryPrice) * size;
     return pnl.toFixed(2);
   };
+  
+  // --- NEW: Calculate Liquidation Price ---
+  const getLiqPrice = (position) => {
+    if (!position.entryPrice || !position.leverage) return 0;
+    // For Long: LP = EntryPrice * (1 - (1 / Leverage))
+    const liqPrice = position.entryPrice - (position.entryPrice / position.leverage);
+    return liqPrice.toFixed(2);
+  };
 
-  const getRiskColor = (level) => {
-    if (level === "Critical" || level === "Immediate Risk") return 'bg-red-600 text-white';
-    if (level === "Warning") return 'bg-yellow-500 text-black';
-    return 'bg-green-600 text-white';
+  const getRiskBanner = (alert) => {
+    if (alert === "Critical" || alert === "Immediate Risk") {
+      return (
+        <div className="p-3 text-center font-bold bg-red-600 text-white">
+          RISK LEVEL: {alert.toUpperCase()}
+        </div>
+      );
+    }
+    if (alert === "Warning") {
+      return (
+        <div className="p-3 text-center font-bold bg-yellow-500 text-black">
+          RISK LEVEL: {alert.toUpperCase()}
+        </div>
+      );
+    }
+    // Default "Safe" banner
+    return (
+      <div className="p-3 text-center font-bold bg-green-600 text-white">
+        RISK LEVEL: SAFE
+      </div>
+    );
   };
 
   // --- RENDER: Connect Wallet Page ---
@@ -345,14 +370,17 @@ function App() {
       <div className="min-h-screen bg-brand-darkest text-gray-200 flex items-center justify-center p-8 font-sans">
         <div className="max-w-xl w-full text-center bg-brand-dark p-10 rounded-lg shadow-2xl">
           {/* Use the logo here. Assumes logo is in /public/GuardTrade Logo.png */}
-          <img src={GuardTradeLogo} alt="GuardTrade Logo" className="h-16 mx-auto mb-6" />
-          <p className="text-xl text-gray-200 mb-8">
-            A decentralized leverage trading platform using <span className="font-bold text-white">Somnia Data Streams</span> to provide instant position monitoring and proactive liquidation protection.
+          <img src="/GuardTrade Logo.png" alt="GuardTrade Logo" className="h-16 mx-auto mb-6" />
+          <p className="text-xl text-white mb-4">
+            Imagine you're borrowing money to trade.
+          </p>
+          <p className="text-lg text-gray-200 mb-8">
+            On most platforms, if the trade moves against you, they can suddenly close your position and take your money without warning. GuardTrade is a smart, hyper-vigilant co-pilot for your trades.
           </p>
           <div className="bg-brand-darkest p-6 rounded-lg text-left mb-8">
             <h2 className="text-2xl font-serif text-white mb-4">Core Innovation</h2>
             <p className="text-gray-300 text-base">
-              Traditional platforms liquidate *after* you're undercollateralized. GuardTrade uses real-time data to warn you *before* it happens.
+              Instead of just letting you crash, GuardTrade sees trouble coming and gives you warnings and options to protect your position *before* it's too late.
             </p>
             <ul className="list-disc list-inside text-gray-300 mt-4 space-y-2 text-base">
               <li><span className="text-white">Real-Time P&L</span> and Health Factor updates.</li>
@@ -380,7 +408,7 @@ function App() {
         {/* --- Header --- */}
         <header className="flex flex-col sm:flex-row justify-between items-center mb-8 pb-4 border-b border-brand-dark">
           {/* Use the logo here as well */}
-          <img src={GuardTradeLogo} alt="GuardTrade Logo" className="h-12" />
+          <img src="/GuardTrade Logo.png" alt="GuardTrade Logo" className="h-12" />
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
             <div className="text-right">
               <div className="text-base font-mono bg-brand-dark px-3 py-1 rounded-md text-white">
@@ -417,6 +445,20 @@ function App() {
                 ${livePrice.toFixed(2)}
               </p>
               <p className="text-base text-gray-300 mt-2">Price updates are streamed in real-time from the Somnia network.</p>
+            </div>
+            
+            {/* --- NEW: Proactive Protection Card --- */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Proactive Protection</h2>
+              <p className="text-base text-gray-300 mb-4">
+                Automatically add collateral from a savings vault to prevent liquidation.
+              </p>
+              <div className="flex items-center justify-between bg-brand-darkest p-4 rounded-lg">
+                <span className="text-lg font-bold text-white">Enable Auto-Protection</span>
+                <span className="text-xs font-medium text-gray-400 bg-gray-600 px-2 py-1 rounded-full">
+                  COMING SOON
+                </span>
+              </div>
             </div>
 
             {/* Actions Card */}
@@ -476,15 +518,12 @@ function App() {
                 {Object.values(positions).map((pos) => {
                   const pnl = getPnl(pos);
                   const alert = alerts[pos.id];
+                  const liqPrice = getLiqPrice(pos);
                   return (
                     <div key={pos.id} className="bg-brand-dark rounded-lg shadow-lg overflow-hidden flex flex-col">
                       
                       {/* --- Risk Alert Banner --- */}
-                      {alert && (
-                        <div className={`p-3 text-center font-bold ${getRiskColor(alert)}`}>
-                          RISK LEVEL: {alert.toUpperCase()}
-                        </div>
-                      )}
+                      {getRiskBanner(alert)}
 
                       {/* --- Position Header --- */}
                       <div className="p-5 border-b border-brand-darkest">
@@ -499,14 +538,14 @@ function App() {
                           <p className={`text-2xl font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             ${pnl}
                           </p>
-                          <p className="text-sm text-gray-300">Profit/Loss since opening.</p>
+                          <p className="text-sm text-gray-300">Your current profit or loss, updating live.</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-300 uppercase">Health Factor</p>
                           <p className="text-2xl font-mono font-bold text-white">
                             {Math.max(0, pos.healthFactor * 100).toFixed(1)}%
                           </p>
-                          <p className="text-sm text-gray-300">If this reaches 0%, you are liquidated.</p>
+                          <p className="text-sm text-gray-300">Like a fuel gauge. If it reaches 0%, you are liquidated.</p>
                         </div>
                         <div className="col-span-2">
                           {/* Health Bar */}
@@ -525,6 +564,13 @@ function App() {
                           <p className="text-sm text-gray-300 uppercase">Entry Price</p>
                           <p className="text-lg font-mono text-white">${pos.entryPrice?.toFixed(2)}</p>
                         </div>
+                        {/* --- NEW: Liquidation Price --- */}
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-300 uppercase">Liquidation Price</p>
+                          <p className="text-lg font-mono text-red-400">${liqPrice}</p>
+                          <p className="text-sm text-gray-300">The price at which your position will be closed.</p>
+                        </div>
+                        
                       </div>
                       
                       {/* --- Position Footer (Actions) --- */}
