@@ -59,6 +59,398 @@ const MOCK_WALLET_BALANCE = 5000; // $5,000 in "Idle Funds"
 const MOCK_INSURANCE_VAULT = 2500; // $2,500 in "Insurance Vault"
 // ----------------------------------------
 
+// OpenPositionModal Component
+const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => {
+  const [step, setStep] = useState(1); // 1: Setup, 2: Protection, 3: Confirmation
+  const [selectedAsset, setSelectedAsset] = useState('ETH');
+  const [leverage, setLeverage] = useState(3);
+  const [collateral, setCollateral] = useState(1000);
+  const [protectionSettings, setProtectionSettings] = useState({
+    autoAddCollateral: true,
+    partialReduce: false,
+    emergencyClose: true,
+    insuranceVault: true
+  });
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setSelectedAsset('ETH');
+      setLeverage(3);
+      setCollateral(1000);
+      setProtectionSettings({
+        autoAddCollateral: true,
+        partialReduce: false,
+        emergencyClose: true,
+        insuranceVault: true
+      });
+    }
+  }, [isOpen]);
+
+  // Calculate real-time values
+  const positionSize = collateral * leverage;
+  const liquidationPrice = selectedAsset === 'ETH' ? livePrice * (1 - (1 / leverage)) : livePrice * 0.95; // Simplified for BTC
+  const distanceToLiquidation = ((livePrice - liquidationPrice) / livePrice) * 100;
+
+  const riskLevel = distanceToLiquidation > 20 ? 'Safe' : 
+                   distanceToLiquidation > 10 ? 'Warning' : 
+                   distanceToLiquidation > 5 ? 'Critical' : 'Immediate Risk';
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-brand-dark rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-brand-darkest">
+          <h2 className="text-2xl font-serif text-white">Open New Position</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="flex justify-center py-4 border-b border-brand-darkest">
+          <div className="flex items-center space-x-8">
+            {[1, 2, 3].map((stepNum) => (
+              <div key={stepNum} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  step >= stepNum ? 'bg-brand-lightest text-brand-darkest' : 'bg-brand-darkest text-gray-400'
+                } font-bold`}>
+                  {stepNum}
+                </div>
+                <span className={`ml-2 ${
+                  step >= stepNum ? 'text-white' : 'text-gray-400'
+                }`}>
+                  {stepNum === 1 && 'Setup'}
+                  {stepNum === 2 && 'Protection'}
+                  {stepNum === 3 && 'Confirm'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Step 1: Position Setup */}
+          {step === 1 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Inputs */}
+              <div className="space-y-6">
+                {/* Asset Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Select Asset</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['ETH', 'BTC'].map(asset => (
+                      <button
+                        key={asset}
+                        onClick={() => setSelectedAsset(asset)}
+                        className={`p-4 rounded-lg border-2 text-center transition-all ${
+                          selectedAsset === asset 
+                            ? 'border-brand-lightest bg-brand-lightest bg-opacity-10 text-white' 
+                            : 'border-brand-darkest bg-brand-darkest text-gray-400 hover:border-brand-gray-medium'
+                        }`}
+                      >
+                        <div className="text-lg font-bold">{asset}</div>
+                        <div className="text-sm text-gray-400">Current: {formatCurrency(livePrice)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Leverage Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Leverage: {leverage}x
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={leverage}
+                      onChange={(e) => setLeverage(Number(e.target.value))}
+                      className="w-full h-2 bg-brand-darkest rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400">
+                      {[1, 3, 5, 7, 10].map(val => (
+                        <span key={val} className="cursor-pointer" onClick={() => setLeverage(val)}>
+                          {val}x
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Collateral Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Collateral Amount
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3 text-gray-400">$</span>
+                    <input
+                      type="number"
+                      value={collateral}
+                      onChange={(e) => setCollateral(Number(e.target.value))}
+                      className="w-full bg-brand-darkest border border-brand-gray-medium rounded-lg py-3 pl-8 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-brand-lightest"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {[500, 1000, 2500, 5000].map(amount => (
+                      <button
+                        key={amount}
+                        onClick={() => setCollateral(amount)}
+                        className="text-xs bg-brand-darkest hover:bg-brand-gray-medium text-gray-400 py-1 px-2 rounded transition"
+                      >
+                        ${amount}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Live Preview */}
+              <div className="bg-brand-darkest rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Position Preview</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Position Size</span>
+                    <span className="text-white font-mono">{formatCurrency(positionSize)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Liquidation Price</span>
+                    <span className="text-red-400 font-mono font-bold">{formatCurrency(liquidationPrice)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Distance to Liq.</span>
+                    <span className={`font-mono font-bold ${
+                      riskLevel === 'Safe' ? 'text-green-400' :
+                      riskLevel === 'Warning' ? 'text-yellow-400' :
+                      riskLevel === 'Critical' ? 'text-orange-400' : 'text-red-400'
+                    }`}>
+                      {distanceToLiquidation.toFixed(1)}%
+                    </span>
+                  </div>
+
+                  {/* Risk Level Indicator */}
+                  <div className="mt-4 p-4 rounded-lg border-2 border-brand-gray-medium">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-400">Risk Level</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        riskLevel === 'Safe' ? 'bg-green-500 text-white' :
+                        riskLevel === 'Warning' ? 'bg-yellow-500 text-black' :
+                        riskLevel === 'Critical' ? 'bg-orange-500 text-white' : 'bg-red-500 text-white'
+                      }`}>
+                        {riskLevel}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          riskLevel === 'Safe' ? 'bg-green-500' :
+                          riskLevel === 'Warning' ? 'bg-yellow-500' :
+                          riskLevel === 'Critical' ? 'bg-orange-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.max(5, 100 - distanceToLiquidation)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Mini Chart Visualization */}
+                  <div className="mt-4 bg-black rounded p-3">
+                    <div className="flex justify-between text-xs text-gray-400 mb-1">
+                      <span>Current: {formatCurrency(livePrice)}</span>
+                      <span>Liq: {formatCurrency(liquidationPrice)}</span>
+                    </div>
+                    <div className="relative h-16 bg-gray-900 rounded">
+                      {/* Simple visualization */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-linear-to-r from-green-500 to-yellow-500 opacity-20"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-linear-to-r from-yellow-500 to-red-500 opacity-20"></div>
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
+                        <div className="text-center">
+                          <div>Price: {formatCurrency(livePrice)}</div>
+                          <div className="text-red-400">Liq: {formatCurrency(liquidationPrice)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Protection Settings */}
+          {step === 2 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <h3 className="text-xl font-serif text-white mb-4">Protection Features</h3>
+                
+                {[
+                  {
+                    key: 'autoAddCollateral',
+                    title: 'Auto-Add Collateral',
+                    description: 'Automatically add funds from your Insurance Vault when position is at risk',
+                    enabled: protectionSettings.autoAddCollateral
+                  },
+                  {
+                    key: 'partialReduce',
+                    title: 'Partial Position Reduction',
+                    description: 'Reduce position size automatically to maintain safe health factor',
+                    enabled: protectionSettings.partialReduce
+                  },
+                  {
+                    key: 'emergencyClose',
+                    title: 'Emergency Close',
+                    description: 'Close position automatically at better prices before liquidation',
+                    enabled: protectionSettings.emergencyClose
+                  },
+                  {
+                    key: 'insuranceVault',
+                    title: 'Use Insurance Vault',
+                    description: 'Enable access to Insurance Vault funds for protection',
+                    enabled: protectionSettings.insuranceVault
+                  }
+                ].map(setting => (
+                  <div key={setting.key} className="flex items-start space-x-4 p-4 bg-brand-darkest rounded-lg">
+                    <div className="flex items-center h-6">
+                      <input
+                        type="checkbox"
+                        checked={protectionSettings[setting.key]}
+                        onChange={(e) => setProtectionSettings(prev => ({
+                          ...prev,
+                          [setting.key]: e.target.checked
+                        }))}
+                        className="w-4 h-4 text-brand-lightest bg-gray-700 border-gray-600 rounded focus:ring-brand-lightest"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-white font-medium">{setting.title}</label>
+                      <p className="text-sm text-gray-400 mt-1">{setting.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-brand-darkest rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Protection Summary</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Auto-Protection</span>
+                    <span className={protectionSettings.autoAddCollateral ? "text-green-400" : "text-red-400"}>
+                      {protectionSettings.autoAddCollateral ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Insurance Vault Access</span>
+                    <span className={protectionSettings.insuranceVault ? "text-green-400" : "text-red-400"}>
+                      {protectionSettings.insuranceVault ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Emergency Protocols</span>
+                    <span className={protectionSettings.emergencyClose ? "text-green-400" : "text-red-400"}>
+                      {protectionSettings.emergencyClose ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-green-500 bg-opacity-10 border border-green-500 rounded-lg">
+                    <div className="text-green-400 text-sm">
+                      <strong>Your position will be actively monitored</strong> by GuardTrade's real-time protection system. You'll receive instant alerts and automated protection when needed.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Confirmation */}
+          {step === 3 && (
+            <div className="text-center space-y-6">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              
+              <h3 className="text-2xl font-serif text-white">Ready to Open Position</h3>
+              
+              <div className="bg-brand-darkest rounded-lg p-6 max-w-md mx-auto">
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Asset</span>
+                    <span className="text-white">{selectedAsset}/USD</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Leverage</span>
+                    <span className="text-white">{leverage}x</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Collateral</span>
+                    <span className="text-white">{formatCurrency(collateral)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Position Size</span>
+                    <span className="text-white">{formatCurrency(positionSize)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Liquidation Price</span>
+                    <span className="text-red-400">{formatCurrency(liquidationPrice)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-gray-400 text-sm max-w-md mx-auto">
+                Your position will be actively monitored by GuardTrade's real-time protection system. You can modify protection settings anytime from the dashboard.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="flex justify-between p-6 border-t border-brand-darkest">
+          <button
+            onClick={() => step > 1 ? setStep(step - 1) : onClose()}
+            className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition"
+          >
+            {step === 1 ? 'Cancel' : 'Back'}
+          </button>
+          
+          <button
+            onClick={() => {
+              if (step < 3) {
+                setStep(step + 1);
+              } else {
+                onPositionOpened({
+                  asset: selectedAsset,
+                  leverage,
+                  collateral,
+                  protectionSettings
+                });
+                onClose();
+              }
+            }}
+            className="px-6 py-3 bg-brand-lightest text-brand-darkest font-bold rounded-lg hover:bg-brand-light transition transform hover:scale-105"
+          >
+            {step === 3 ? 'Open Position' : 'Continue'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to format currency
+const formatCurrency = (value) => {
+  if (typeof value !== 'number') value = 0;
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+};
+
 function App() {
   const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
@@ -69,6 +461,8 @@ function App() {
   const [positions, setPositions] = useState({});
   const [alerts, setAlerts] = useState({});
   const [selectedPosition, setSelectedPosition] = useState(null);
+  const [isOpenPositionModal, setIsOpenPositionModal] = useState(false);
+  const [protectionSettings, setProtectionSettings] = useState({});
 
   // --- NEW: Calculate Global Portfolio Values ---
   const activeCollateral = Object.values(positions).reduce((acc, pos) => acc + pos.collateral, 0);
@@ -264,8 +658,11 @@ function App() {
 
   // --- 5. CONTRACT INTERACTION FUNCTIONS ---
 
-  const openPosition = async () => {
+  const openPosition = async (positionData) => {
     if (!wallet || !account) return alert("Wallet not connected");
+    
+    const { collateral, leverage, asset, protectionSettings } = positionData;
+    
     setStatus("Opening position...");
     try {
       const { request } = await publicClient.simulateContract({
@@ -274,8 +671,8 @@ function App() {
         abi: LeverageManagerABI.abi,
         functionName: 'openPosition',
         args: [
-          BigInt(1000 * 10**8), // $1000 collateral
-          BigInt(3), // 3x leverage
+          BigInt(collateral * 10**8), // Use the collateral from modal
+          BigInt(leverage), // Use the leverage from modal
           0 // PositionType.Long
         ]
       });
@@ -299,15 +696,22 @@ function App() {
 
       const newPosition = {
         entryPrice: Number(posData.entryPrice) / 10**8,
-        leverage: 3,
+        leverage: leverage,
         collateral: Number(posData.collateral) / 10**8,
         healthFactor: 1,
-        id: Number(newPosId)
+        id: Number(newPosId),
+        asset: asset
       };
 
       setPositions(prev => ({
         ...prev,
         [Number(newPosId)]: newPosition
+      }));
+
+      // Store protection settings for this position
+      setProtectionSettings(prev => ({
+        ...prev,
+        [Number(newPosId)]: protectionSettings
       }));
 
       // Auto-select the new position
@@ -384,13 +788,7 @@ function App() {
     return liqPrice;
   };
   
-  // --- NEW: Helper to format $ amounts ---
-  const formatCurrency = (value) => {
-    if (typeof value !== 'number') value = 0;
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  };
-  
-  // --- NEW: Get color class for risk ---
+  // --- Get color class for risk ---
   const getRiskColor = (level) => {
     if (level === "Critical" || level === "Immediate Risk") return 'text-red-500';
     if (level === "Warning") return 'text-yellow-500';
@@ -578,12 +976,12 @@ function App() {
             {/* Card 4: Quick Actions */}
             <div className="bg-brand-dark p-6 rounded-lg shadow-lg flex flex-col justify-center">
               <button
-                onClick={openPosition}
+                onClick={() => setIsOpenPositionModal(true)}
                 className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3"
               >
-                Open New Position
+                🛡️ Open Protected Position
               </button>
-              <p className="text-sm text-gray-300 text-center">3x Long ETH Demo</p>
+              <p className="text-sm text-gray-300 text-center">Custom leverage & protection</p>
             </div>
 
           </div>
@@ -616,7 +1014,7 @@ function App() {
                         <td colSpan="6" className="p-10 text-center text-gray-400">
                           <p className="text-xl">No active positions.</p>
                           <p className="text-base mt-2">
-                            Click "Open New Position" above to get started.
+                            Click "Open Protected Position" above to get started.
                           </p>
                         </td>
                       </tr>
@@ -628,6 +1026,7 @@ function App() {
                         const alert = alerts[pos.id] || {level: "Safe"};
                         const healthPercent = Math.max(0, pos.healthFactor * 100);
                         const isSelected = selectedPosition === pos.id;
+                        const posProtection = protectionSettings[pos.id];
                         
                         return (
                           <tr 
@@ -638,8 +1037,11 @@ function App() {
                             onClick={() => setSelectedPosition(pos.id)}
                           >
                             <td className="p-4">
-                              <div className="font-bold text-white">ETH/USD</div>
-                              <div className="text-sm text-green-400">3x LONG</div>
+                              <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
+                              <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
+                              {posProtection?.autoAddCollateral && (
+                                <div className="text-xs text-brand-lightest mt-1">🛡️ Protected</div>
+                              )}
                             </td>
                             <td className="p-4 font-mono">
                               <div className="text-white">{formatCurrency(size)}</div>
@@ -689,6 +1091,9 @@ function App() {
               <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
                 <h2 className="text-2xl font-serif mb-4 text-white">
                   Position Details #{selectedPosition}
+                  {protectionSettings[selectedPosition]?.autoAddCollateral && (
+                    <span className="ml-3 text-sm bg-green-500 text-white px-2 py-1 rounded-full">🛡️ Protected</span>
+                  )}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
@@ -698,7 +1103,7 @@ function App() {
                     <div className="h-48 flex items-center justify-center bg-brand-dark rounded">
                       <div className="text-center text-gray-400">
                         <div className="text-2xl mb-2">📊</div>
-                        <p>Live chart for ETH/USD</p>
+                        <p>Live chart for {selectedPositionData.asset || 'ETH'}/USD</p>
                         <p className="text-sm mt-1">Current: {formatCurrency(livePrice)}</p>
                         <p className="text-sm">Entry: {formatCurrency(selectedPositionData.entryPrice)}</p>
                         <p className="text-sm text-red-400">
@@ -737,6 +1142,24 @@ function App() {
                         </p>
                       </div>
                     </div>
+                    
+                    {/* Protection Settings */}
+                    {protectionSettings[selectedPosition] && (
+                      <div className="bg-brand-darkest p-4 rounded">
+                        <p className="text-sm text-gray-400 mb-2">Protection Settings</p>
+                        <div className="flex flex-wrap gap-2">
+                          {protectionSettings[selectedPosition].autoAddCollateral && (
+                            <span className="text-xs bg-green-500 text-white px-2 py-1 rounded">Auto-Collateral</span>
+                          )}
+                          {protectionSettings[selectedPosition].emergencyClose && (
+                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Emergency Close</span>
+                          )}
+                          {protectionSettings[selectedPosition].insuranceVault && (
+                            <span className="text-xs bg-brand-light text-brand-darkest px-2 py-1 rounded">Vault Access</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="bg-brand-darkest p-4 rounded">
                       <p className="text-sm text-gray-400 mb-2">Current Status</p>
@@ -895,6 +1318,14 @@ function App() {
           </aside>
         </div>
       </div>
+
+      {/* Open Position Modal */}
+      <OpenPositionModal
+        isOpen={isOpenPositionModal}
+        onClose={() => setIsOpenPositionModal(false)}
+        onPositionOpened={openPosition}
+        livePrice={livePrice}
+      />
     </div>
   );
 }
