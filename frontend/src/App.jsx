@@ -7,14 +7,13 @@ import { ethers } from 'ethers';
 // I've pasted them here for you to make the hackathon setup faster.
 
 const PriceOracleABI = {
-  abi: [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"asset","type":"string"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"PriceUpdate","type":"event"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"assetPrices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"}],"name":"getPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"},{"internalType":"uint256","name":"_price","type":"uint256"}],"name":"setPrice","outputs":[],"stateMutability":"nonpayable","type":"function"}],
-
+  abi: [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"asset","type":"string"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"PriceUpdate","type":"event"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"assetPrices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"}],"name":"getPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"},{"internalType":"uint256","name":"_price","type":"uint256"}],"name":"setPrice","outputs":[],"stateMutability":"nonpayable","type":"function"}]
 };
 const LeverageManagerABI = {
-abi: [{"inputs":[{"internalType":"address","name":"_oracleAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"uint256","name":"collateral","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"healthFactor","type":"uint256"}],"name":"PositionUpdate","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"getHealthFactor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nextPositionId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_leverage","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"_positionType","type":"uint8"}],"name":"openPosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"positions","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"collateral","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"entryPrice","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"positionType","type":"uint8"},{"internalType":"enum LeverageManager.PositionState","name":"state","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceOracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"updatePosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"userPositions","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}],
+  abi: [{"inputs":[{"internalType":"address","name":"_oracleAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"uint256","name":"collateral","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"healthFactor","type":"uint256"}],"name":"PositionUpdate","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"getHealthFactor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nextPositionId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_leverage","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"_positionType","type":"uint8"}],"name":"openPosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"positions","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"collateral","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"entryPrice","type":"uint256"},{"internalType":"enum LeverageManager.PositionType","name":"positionType","type":"uint8"},{"internalType":"enum LeverageManager.PositionState","name":"state","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceOracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"updatePosition","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"userPositions","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]
 };
 const GuardianABI = {
-  abi: [{"inputs":[{"internalType":"address","name":"_manager","type":"address"},{"internalType":"address","name":"_oracle","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"enum Guardian.RiskLevel","name":"riskLevel","type":"uint8"}],"name":"RiskThresholdBreach","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"checkRisk","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"manager","outputs":[{"internalType":"contract LeverageManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"oracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"}],
+  abi: [{"inputs":[{"internalType":"address","name":"_manager","type":"address"},{"internalType":"address","name":"_oracle","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"positionId","type":"uint256"},{"indexed":false,"internalType":"enum Guardian.RiskLevel","name":"riskLevel","type":"uint8"}],"name":"RiskThresholdBreach","type":"event"},{"inputs":[{"internalType":"uint256","name":"_positionId","type":"uint256"}],"name":"checkRisk","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"manager","outputs":[{"internalType":"contract LeverageManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"oracle","outputs":[{"internalType":"contract MockPriceOracle","name":"","type":"address"}],"stateMutability":"view","type":"function"}]
 };
 // --- END ABIs ---
 
@@ -55,6 +54,11 @@ const truncateAddress = (address) => {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 };
 
+// --- MOCK DATA FOR GLOBAL PORTFOLIO ---
+const MOCK_WALLET_BALANCE = 5000; // $5,000 in "Idle Funds"
+const MOCK_INSURANCE_VAULT = 2500; // $2,500 in "Insurance Vault"
+// ----------------------------------------
+
 function App() {
   const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
@@ -64,6 +68,25 @@ function App() {
   const [livePrice, setLivePrice] = useState(3000);
   const [positions, setPositions] = useState({});
   const [alerts, setAlerts] = useState({});
+  const [selectedPosition, setSelectedPosition] = useState(null);
+
+  // --- NEW: Calculate Global Portfolio Values ---
+  const activeCollateral = Object.values(positions).reduce((acc, pos) => acc + pos.collateral, 0);
+  const totalPortfolioValue = MOCK_WALLET_BALANCE + MOCK_INSURANCE_VAULT + activeCollateral;
+
+  // Calculate portfolio health score (0-100)
+  const calculatePortfolioHealth = () => {
+    if (Object.keys(positions).length === 0) return 95;
+    
+    const avgHealth = Object.values(positions).reduce((acc, pos) => {
+      const health = Math.max(0, pos.healthFactor || 0) * 100;
+      return acc + health;
+    }, 0) / Object.keys(positions).length;
+    
+    return Math.min(95, Math.max(60, avgHealth));
+  };
+
+  const portfolioHealth = calculatePortfolioHealth();
 
   // --- 2. INITIALIZE PUBLIC DATA (No Wallet Needed) ---
   useEffect(() => {
@@ -118,6 +141,7 @@ function App() {
     setAccount(null);
     setPositions({});
     setAlerts({});
+    setSelectedPosition(null);
     setStatus('Wallet disconnected. Please connect again.');
   }, []);
 
@@ -157,6 +181,7 @@ function App() {
     if (!account) {
       setPositions({});
       setAlerts({});
+      setSelectedPosition(null);
       return;
     }
     
@@ -214,7 +239,10 @@ function App() {
             if (prev[Number(positionId)]) {
               setAlerts(prevAlerts => ({
                 ...prevAlerts,
-                [Number(positionId)]: RISK_LEVELS[Number(riskLevel)]
+                [positionId]: {
+                  level: RISK_LEVELS[Number(riskLevel)],
+                  time: new Date().toLocaleTimeString()
+                }
               }));
             }
             return prev;
@@ -269,14 +297,24 @@ function App() {
         args: [newPosId]
       });
 
+      const newPosition = {
+        entryPrice: Number(posData.entryPrice) / 10**8,
+        leverage: 3,
+        collateral: Number(posData.collateral) / 10**8,
+        healthFactor: 1,
+        id: Number(newPosId)
+      };
+
       setPositions(prev => ({
         ...prev,
-        [Number(newPosId)]: {
-          ...prev[Number(newPosId)],
-          entryPrice: Number(posData.entryPrice) / 10**8,
-          leverage: 3 // Hardcoding this as we know it from openPosition
-        }
+        [Number(newPosId)]: newPosition
       }));
+
+      // Auto-select the new position
+      setSelectedPosition(Number(newPosId));
+
+      // Manually add a "Safe" alert for the new position
+      setAlerts(prev => ({...prev, [Number(newPosId)]: {level: "Safe", time: new Date().toLocaleTimeString()}}))
 
     } catch (err) { 
       console.error("Open position error:", err);
@@ -298,15 +336,21 @@ function App() {
       const hash = await wallet.writeContract(request);
       await publicClient.waitForTransactionReceipt({ hash });
       setStatus(`Price set to $${newPrice}. Streams will update dashboard.`);
+      
+      // --- NEW: Automatically check risk on all positions after price change ---
+      Object.keys(positions).forEach(posId => {
+        checkRisk(posId, true); // Pass true for a silent check
+      });
+
     } catch (err) { 
       console.error("Simulate price error:", err);
       setStatus("Error setting price. Check console.");
     }
   };
 
-  const checkRisk = async (positionId) => {
+  const checkRisk = async (positionId, silent = false) => {
     if (!wallet || !account) return alert("Wallet not connected");
-    setStatus(`Checking risk for position ${positionId}...`);
+    if (!silent) setStatus(`Checking risk for position ${positionId}...`);
     try {
       const { request } = await publicClient.simulateContract({
         account,
@@ -317,10 +361,10 @@ function App() {
       });
       const hash = await wallet.writeContract(request);
       await publicClient.waitForTransactionReceipt({ hash });
-      setStatus(`Risk check sent. Alert stream will update status.`);
+      if (!silent) setStatus(`Risk check sent. Alert stream will update status.`);
     } catch (err) { 
       console.error("Check risk error:", err);
-      setStatus("Error checking risk. Check console.");
+      if (!silent) setStatus("Error checking risk. Check console.");
     }
   };
 
@@ -330,39 +374,51 @@ function App() {
     if (!position.entryPrice) return 0;
     const size = (position.collateral * position.leverage) / position.entryPrice;
     const pnl = (livePrice - position.entryPrice) * size;
-    return pnl.toFixed(2);
+    return pnl;
   };
   
-  // --- NEW: Calculate Liquidation Price ---
   const getLiqPrice = (position) => {
     if (!position.entryPrice || !position.leverage) return 0;
     // For Long: LP = EntryPrice * (1 - (1 / Leverage))
     const liqPrice = position.entryPrice - (position.entryPrice / position.leverage);
-    return liqPrice.toFixed(2);
+    return liqPrice;
+  };
+  
+  // --- NEW: Helper to format $ amounts ---
+  const formatCurrency = (value) => {
+    if (typeof value !== 'number') value = 0;
+    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  };
+  
+  // --- NEW: Get color class for risk ---
+  const getRiskColor = (level) => {
+    if (level === "Critical" || level === "Immediate Risk") return 'text-red-500';
+    if (level === "Warning") return 'text-yellow-500';
+    return 'text-green-500';
+  };
+  
+  const getRiskBgColor = (level) => {
+    if (level === "Critical" || level === "Immediate Risk") return 'bg-red-500 text-white';
+    if (level === "Warning") return 'bg-yellow-500 text-black';
+    return 'bg-green-600 text-white';
   };
 
-  const getRiskBanner = (alert) => {
-    if (alert === "Critical" || alert === "Immediate Risk") {
-      return (
-        <div className="p-3 text-center font-bold bg-red-600 text-white">
-          RISK LEVEL: {alert.toUpperCase()}
-        </div>
-      );
-    }
-    if (alert === "Warning") {
-      return (
-        <div className="p-3 text-center font-bold bg-yellow-500 text-black">
-          RISK LEVEL: {alert.toUpperCase()}
-        </div>
-      );
-    }
-    // Default "Safe" banner
-    return (
-      <div className="p-3 text-center font-bold bg-green-600 text-white">
-        RISK LEVEL: SAFE
-      </div>
-    );
+  const getHealthColor = (health) => {
+    if (health >= 80) return 'text-green-400';
+    if (health >= 60) return 'text-yellow-400';
+    if (health >= 40) return 'text-orange-400';
+    return 'text-red-400';
   };
+
+  const getHealthBgColor = (health) => {
+    if (health >= 80) return 'bg-green-500';
+    if (health >= 60) return 'bg-yellow-500';
+    if (health >= 40) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+
+  // Get selected position data
+  const selectedPositionData = selectedPosition ? positions[selectedPosition] : null;
 
   // --- RENDER: Connect Wallet Page ---
   if (!account) {
@@ -431,163 +487,412 @@ function App() {
           </div>
         </header>
 
-        {/* --- Dashboard Grid --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* --- Section 1: Global Portfolio Health --- */}
+        <section className="mb-8">
+          <h2 className="text-3xl font-serif mb-4 text-white">Global Portfolio</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            
+            {/* Card 1: Total Value & Health */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <p className="text-sm text-gray-300 uppercase">Total Portfolio Value</p>
+              <p className="text-4xl font-mono font-bold text-white">
+                {formatCurrency(totalPortfolioValue)}
+              </p>
+              <div className="flex items-center mt-3">
+                <div className="w-full bg-brand-darkest rounded-full h-3 mr-3">
+                  <div
+                    className={`h-3 rounded-full ${getHealthBgColor(portfolioHealth)}`}
+                    style={{ width: `${portfolioHealth}%` }}
+                  ></div>
+                </div>
+                <span className={`text-sm font-bold ${getHealthColor(portfolioHealth)}`}>
+                  {portfolioHealth.toFixed(0)}/100
+                </span>
+              </div>
+              <p className="text-sm text-gray-300 mt-2">Global Health Score</p>
+            </div>
 
-          {/* --- Left Column: Market & Actions --- */}
-          <div className="lg:col-span-1 space-y-6">
+            {/* Card 2: Funds Allocation Visual */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <p className="text-sm text-gray-300 uppercase mb-3">Funds Allocation</p>
+              {/* Visual representation of fund allocation */}
+              <div className="flex w-full h-8 rounded-full overflow-hidden mb-3">
+                <div 
+                  className="bg-green-500 transition-all duration-500" 
+                  style={{width: `${(MOCK_WALLET_BALANCE / totalPortfolioValue) * 100}%`}}
+                  title={`Idle Funds: ${formatCurrency(MOCK_WALLET_BALANCE)}`}
+                ></div>
+                <div 
+                  className="bg-blue-500 transition-all duration-500" 
+                  style={{width: `${(activeCollateral / totalPortfolioValue) * 100}%`}}
+                  title={`Active Collateral: ${formatCurrency(activeCollateral)}`}
+                ></div>
+                <div 
+                  className="bg-brand-light transition-all duration-500" 
+                  style={{width: `${(MOCK_INSURANCE_VAULT / totalPortfolioValue) * 100}%`}}
+                  title={`Insurance Vault: ${formatCurrency(MOCK_INSURANCE_VAULT)}`}
+                ></div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="text-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
+                  <div className="text-green-400 font-medium">Idle</div>
+                  <div className="text-gray-400">{formatCurrency(MOCK_WALLET_BALANCE)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-1"></div>
+                  <div className="text-blue-400 font-medium">Active</div>
+                  <div className="text-gray-400">{formatCurrency(activeCollateral)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-3 h-3 bg-brand-light rounded-full mx-auto mb-1"></div>
+                  <div className="text-brand-lightest font-medium">Vault</div>
+                  <div className="text-gray-400">{formatCurrency(MOCK_INSURANCE_VAULT)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Risk Overview */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <p className="text-sm text-gray-300 uppercase">Risk Overview</p>
+              <div className="mt-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Active Positions:</span>
+                  <span className="text-white font-bold">{Object.keys(positions).length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">At Risk:</span>
+                  <span className="text-red-400 font-bold">
+                    {Object.values(alerts).filter(alert => alert.level !== "Safe").length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Protected:</span>
+                  <span className="text-green-400 font-bold">
+                    {Object.values(alerts).filter(alert => alert.level === "Safe").length}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Card 4: Quick Actions */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg flex flex-col justify-center">
+              <button
+                onClick={openPosition}
+                className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3"
+              >
+                Open New Position
+              </button>
+              <p className="text-sm text-gray-300 text-center">3x Long ETH Demo</p>
+            </div>
+
+          </div>
+        </section>
+
+        {/* --- Dashboard Layout (Main + Sidebar) --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* --- Section 2: Active Positions (Main Column) --- */}
+          <main className="lg:col-span-2 space-y-6">
+            
+            {/* Positions Table */}
+            <div>
+              <h2 className="text-3xl font-serif mb-4 text-white">Active Positions</h2>
+              <div className="bg-brand-dark rounded-lg shadow-lg overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="border-b border-brand-darkest">
+                    <tr className="text-sm text-gray-300 uppercase">
+                      <th className="p-4">Pair / Direction</th>
+                      <th className="p-4">Size / Entry</th>
+                      <th className="p-4">Live P&L</th>
+                      <th className="p-4">Liq. Price</th>
+                      <th className="p-4">Health Factor</th>
+                      <th className="p-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(positions).length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-10 text-center text-gray-400">
+                          <p className="text-xl">No active positions.</p>
+                          <p className="text-base mt-2">
+                            Click "Open New Position" above to get started.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      Object.values(positions).map(pos => {
+                        const pnl = getPnl(pos);
+                        const liqPrice = getLiqPrice(pos);
+                        const size = pos.collateral * pos.leverage;
+                        const alert = alerts[pos.id] || {level: "Safe"};
+                        const healthPercent = Math.max(0, pos.healthFactor * 100);
+                        const isSelected = selectedPosition === pos.id;
+                        
+                        return (
+                          <tr 
+                            key={pos.id} 
+                            className={`border-b border-brand-darkest hover:bg-brand-darkest transition cursor-pointer ${
+                              isSelected ? 'bg-brand-darkest ring-2 ring-brand-lightest' : ''
+                            }`}
+                            onClick={() => setSelectedPosition(pos.id)}
+                          >
+                            <td className="p-4">
+                              <div className="font-bold text-white">ETH/USD</div>
+                              <div className="text-sm text-green-400">3x LONG</div>
+                            </td>
+                            <td className="p-4 font-mono">
+                              <div className="text-white">{formatCurrency(size)}</div>
+                              <div className="text-sm text-gray-400">@{formatCurrency(pos.entryPrice)}</div>
+                            </td>
+                            <td className={`p-4 font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                              <div className="text-xs text-gray-400">
+                                {((pnl / (pos.collateral)) * 100).toFixed(1)}%
+                              </div>
+                            </td>
+                            <td className="p-4 font-mono text-red-400 font-bold">
+                              {formatCurrency(liqPrice)}
+                            </td>
+                            <td className="p-4">
+                              <div className="w-full bg-brand-darkest rounded-full h-4 mb-2">
+                                <div
+                                  className="h-4 rounded-full transition-all duration-300"
+                                  style={{ 
+                                    width: `${Math.min(100, healthPercent)}%`,
+                                    background: healthPercent >= 70 ? 'linear-gradient(90deg, #10B981, #22C55E)' : 
+                                               healthPercent >= 40 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 
+                                               'linear-gradient(90deg, #EF4444, #DC2626)'
+                                  }}
+                                ></div>
+                              </div>
+                              <div className={`text-sm font-mono ${getRiskColor(alert.level)}`}>
+                                {healthPercent.toFixed(1)}%
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getRiskBgColor(alert.level)}`}>
+                                {alert.level}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Position Details & Chart Section */}
+            {selectedPositionData && (
+              <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+                <h2 className="text-2xl font-serif mb-4 text-white">
+                  Position Details #{selectedPosition}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Chart Placeholder */}
+                  <div className="bg-brand-darkest p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-3">Live Price Chart</h3>
+                    <div className="h-48 flex items-center justify-center bg-brand-dark rounded">
+                      <div className="text-center text-gray-400">
+                        <div className="text-2xl mb-2">📊</div>
+                        <p>Live chart for ETH/USD</p>
+                        <p className="text-sm mt-1">Current: {formatCurrency(livePrice)}</p>
+                        <p className="text-sm">Entry: {formatCurrency(selectedPositionData.entryPrice)}</p>
+                        <p className="text-sm text-red-400">
+                          Liquidation: {formatCurrency(getLiqPrice(selectedPositionData))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Position Metrics */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white">Key Metrics</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-brand-darkest p-3 rounded">
+                        <p className="text-sm text-gray-400">Collateral</p>
+                        <p className="text-lg font-bold text-white">
+                          {formatCurrency(selectedPositionData.collateral)}
+                        </p>
+                      </div>
+                      <div className="bg-brand-darkest p-3 rounded">
+                        <p className="text-sm text-gray-400">Leverage</p>
+                        <p className="text-lg font-bold text-yellow-400">
+                          {selectedPositionData.leverage}x
+                        </p>
+                      </div>
+                      <div className="bg-brand-darkest p-3 rounded">
+                        <p className="text-sm text-gray-400">Position Size</p>
+                        <p className="text-lg font-bold text-white">
+                          {formatCurrency(selectedPositionData.collateral * selectedPositionData.leverage)}
+                        </p>
+                      </div>
+                      <div className="bg-brand-darkest p-3 rounded">
+                        <p className="text-sm text-gray-400">Distance to Liq.</p>
+                        <p className="text-lg font-bold text-red-400">
+                          {((livePrice - getLiqPrice(selectedPositionData)) / livePrice * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-brand-darkest p-4 rounded">
+                      <p className="text-sm text-gray-400 mb-2">Current Status</p>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-lg font-bold ${getRiskColor(alerts[selectedPosition]?.level || "Safe")}`}>
+                          {alerts[selectedPosition]?.level || "Safe"}
+                        </span>
+                        <button
+                          onClick={() => checkRisk(selectedPosition)}
+                          className="bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-2 px-4 rounded transition"
+                        >
+                          Check Risk
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+          
+          {/* --- Sidebar --- */}
+          <aside className="lg:col-span-1 space-y-6">
             
             {/* Live Market Card */}
             <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-serif mb-4 text-white">Live Market</h2>
-              <p className="text-sm text-gray-300 uppercase">ETH-USD</p>
-              <p className="text-5xl font-mono font-bold text-white">
-                ${livePrice.toFixed(2)}
-              </p>
-              <p className="text-base text-gray-300 mt-2">Price updates are streamed in real-time from the Somnia network.</p>
-            </div>
-            
-            {/* --- NEW: Proactive Protection Card --- */}
-            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
-              <h2 className="text-2xl font-serif mb-4 text-white">Proactive Protection</h2>
-              <p className="text-base text-gray-300 mb-4">
-                Automatically add collateral from a savings vault to prevent liquidation.
-              </p>
-              <div className="flex items-center justify-between bg-brand-darkest p-4 rounded-lg">
-                <span className="text-lg font-bold text-white">Enable Auto-Protection</span>
-                <span className="text-xs font-medium text-gray-400 bg-gray-600 px-2 py-1 rounded-full">
-                  COMING SOON
-                </span>
-              </div>
-            </div>
-
-            {/* Actions Card */}
-            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
-              <h2 className="text-2xl font-serif mb-4 text-white">Actions</h2>
-              <button
-                onClick={openPosition}
-                className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg"
-              >
-                Open 3x Long ETH Position
-              </button>
-              <p className="text-base text-gray-300 mt-3 text-center">This will open a demo position with $1,000 in collateral.</p>
-            </div>
-
-            {/* Demo Card */}
-            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
-              <h2 className="text-2xl font-serif mb-4 text-white">Demo: Simulate Price</h2>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => simulatePrice(3000)}
-                  className="bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-2 px-3 rounded-lg text-base transition"
-                >
-                  Stable
-                </button>
-                <button
-                  onClick={() => simulatePrice(2500)}
-                  className="bg-yellow-500 hover:bg-yellow-400 text-black py-2 px-3 rounded-lg text-base transition"
-                >
-                  Warning
-                </button>
-                <button
-                  onClick={() => simulatePrice(2200)}
-                  className="bg-red-600 hover:bg-red-500 text-white py-2 px-3 rounded-lg text-base transition"
-                >
-                  Critical
-                </button>
-              </div>
-              <p className="text-base text-gray-300 mt-3 text-center">Manually trigger price changes to test your position's health.</p>
-            </div>
-          </div>
-
-          {/* --- Right Column: Positions --- */}
-          <div className="lg:col-span-2">
-            <h2 className="text-3xl font-serif mb-4 text-white">Your Active Positions</h2>
-            
-            {Object.keys(positions).length === 0 ? (
-              // No Positions State
-              <div className="bg-brand-dark p-10 rounded-lg shadow-lg text-center">
-                <p className="text-xl text-white">No active positions.</p>
-                <p className="text-base text-gray-300 mt-2">
-                  Click the "Open 3x Long ETH Position" button on the left to create one and see the real-time data streams in action.
+              <div className="text-center">
+                <p className="text-sm text-gray-300 uppercase">ETH-USD</p>
+                <p className="text-5xl font-mono font-bold text-white my-4">
+                  {formatCurrency(livePrice)}
                 </p>
+                <div className="text-sm text-gray-400">
+                  Real-time via Somnia Streams
+                </div>
               </div>
-            ) : (
-              // Positions Grid
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.values(positions).map((pos) => {
-                  const pnl = getPnl(pos);
-                  const alert = alerts[pos.id];
-                  const liqPrice = getLiqPrice(pos);
-                  return (
-                    <div key={pos.id} className="bg-brand-dark rounded-lg shadow-lg overflow-hidden flex flex-col">
-                      
-                      {/* --- Risk Alert Banner --- */}
-                      {getRiskBanner(alert)}
-
-                      {/* --- Position Header --- */}
-                      <div className="p-5 border-b border-brand-darkest">
-                        <h3 className="text-xl font-serif font-bold text-white">Position #{pos.id}</h3>
-                        <p className="text-base text-white">3x ETH-USD LONG</p>
-                      </div>
-                      
-                      {/* --- Position Body (Stats) --- */}
-                      <div className="p-5 grid grid-cols-2 gap-5 grow">
+            </div>
+            
+            {/* Insurance Vault Card */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Insurance Vault</h2>
+              <div className="text-center mb-4">
+                <p className="text-sm text-gray-300 uppercase">Vault Balance</p>
+                <p className="text-4xl font-mono font-bold text-white my-3">
+                  {formatCurrency(MOCK_INSURANCE_VAULT)}
+                </p>
+                <div className="w-24 h-24 mx-auto mb-4 relative">
+                  <svg className="w-full h-full" viewBox="0 0 36 36">
+                    <path
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#374151"
+                      strokeWidth="3"
+                    />
+                    <path
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#60A5FA"
+                      strokeWidth="3"
+                      strokeDasharray="70, 100"
+                    />
+                    <text x="18" y="20.5" textAnchor="middle" fill="#60A5FA" fontSize="8" fontWeight="bold">70%</text>
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-300">Protection Coverage</p>
+              </div>
+              <div className="flex gap-2">
+                <button className="flex-1 bg-brand-gray-medium text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
+                  Deposit
+                </button>
+                <button className="flex-1 bg-brand-gray-medium text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
+                  Withdraw
+                </button>
+              </div>
+            </div>
+            
+            {/* Alerts Panel */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Active Alerts</h2>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {Object.keys(alerts).length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="text-2xl mb-2">✅</div>
+                    <p className="text-base text-gray-400">No active alerts</p>
+                    <p className="text-sm text-gray-500">All positions are safe</p>
+                  </div>
+                ) : (
+                  Object.entries(alerts).map(([posId, alert]) => (
+                    <div 
+                      key={posId} 
+                      className={`p-3 rounded-lg border-l-4 ${
+                        alert.level === "Critical" || alert.level === "Immediate Risk" 
+                          ? 'border-red-500 bg-red-500/10' 
+                          : alert.level === "Warning" 
+                          ? 'border-yellow-500 bg-yellow-500/10'
+                          : 'border-green-500 bg-green-500/10'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-sm text-gray-300 uppercase">Live P&L</p>
-                          <p className={`text-2xl font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            ${pnl}
-                          </p>
-                          <p className="text-sm text-gray-300">Your current profit or loss, updating live.</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-300 uppercase">Health Factor</p>
-                          <p className="text-2xl font-mono font-bold text-white">
-                            {Math.max(0, pos.healthFactor * 100).toFixed(1)}%
-                          </p>
-                          <p className="text-sm text-gray-300">Like a fuel gauge. If it reaches 0%, you are liquidated.</p>
-                        </div>
-                        <div className="col-span-2">
-                          {/* Health Bar */}
-                          <div className="w-full bg-brand-darkest rounded-full h-4">
-                            <div
-                              className="bg-linear-to-r from-red-500 via-yellow-500 to-green-500 h-4 rounded-full"
-                              style={{ width: `${Math.max(0, pos.healthFactor) * 100}%` }}
-                            ></div>
+                          <div className={`font-bold ${
+                            alert.level === "Critical" || alert.level === "Immediate Risk" 
+                              ? 'text-red-400' 
+                              : alert.level === "Warning" 
+                              ? 'text-yellow-400'
+                              : 'text-green-400'
+                          }`}>
+                            {alert.level.toUpperCase()}
                           </div>
+                          <p className="text-sm text-gray-200 mt-1">Position #{posId}</p>
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-300 uppercase">Collateral</p>
-                          <p className="text-lg font-mono text-white">${pos.collateral?.toFixed(2)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-300 uppercase">Entry Price</p>
-                          <p className="text-lg font-mono text-white">${pos.entryPrice?.toFixed(2)}</p>
-                        </div>
-                        {/* --- NEW: Liquidation Price --- */}
-                        <div className="col-span-2">
-                          <p className="text-sm text-gray-300 uppercase">Liquidation Price</p>
-                          <p className="text-lg font-mono text-red-400">${liqPrice}</p>
-                          <p className="text-sm text-gray-300">The price at which your position will be closed.</p>
-                        </div>
-                        
-                      </div>
-                      
-                      {/* --- Position Footer (Actions) --- */}
-                      <div className="p-4 bg-brand-darkest mt-auto">
-                        <button 
-                          onClick={() => checkRisk(pos.id)}
-                          className="w-full text-base bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-2 px-3 rounded transition"
-                        >
-                          Manually Check Position Health
-                        </button>
+                        <span className="text-xs text-gray-400">{alert.time}</span>
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </div>
-            )}
-          </div>
+            </div>
+            
+            {/* Demo Controls */}
+            <div className="bg-brand-dark p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-serif mb-4 text-white">Demo Controls</h2>
+              <p className="text-sm text-gray-300 mb-3">Simulate ETH Price Changes</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => simulatePrice(3200)}
+                  className="bg-green-600 hover:bg-green-500 text-white py-3 px-4 rounded-lg transition font-semibold"
+                >
+                  🚀 $3,200
+                </button>
+                <button
+                  onClick={() => simulatePrice(3000)}
+                  className="bg-brand-gray-medium hover:bg-brand-light hover:text-brand-darkest text-white py-3 px-4 rounded-lg transition font-semibold"
+                >
+                  ⚖️ $3,000
+                </button>
+                <button
+                  onClick={() => simulatePrice(2700)}
+                  className="bg-yellow-600 hover:bg-yellow-500 text-white py-3 px-4 rounded-lg transition font-semibold"
+                >
+                  ⚠️ $2,700
+                </button>
+                <button
+                  onClick={() => simulatePrice(2400)}
+                  className="bg-red-600 hover:bg-red-500 text-white py-3 px-4 rounded-lg transition font-semibold"
+                >
+                  🔴 $2,400
+                </button>
+              </div>
+            </div>
+
+          </aside>
         </div>
       </div>
     </div>
