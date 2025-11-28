@@ -455,6 +455,8 @@ function App() {
   const [wallet, setWallet] = useState(null);
   const [account, setAccount] = useState(null);
   const [status, setStatus] = useState('Please connect your wallet.');
+  const [userName, setUserName] = useState('');
+  const [balance, setBalance] = useState(0);
 
   // Live Data State
   const [livePrice, setLivePrice] = useState(3000);
@@ -466,7 +468,7 @@ function App() {
 
   // --- NEW: Calculate Global Portfolio Values ---
   const activeCollateral = Object.values(positions).reduce((acc, pos) => acc + pos.collateral, 0);
-  const totalPortfolioValue = MOCK_WALLET_BALANCE + MOCK_INSURANCE_VAULT + activeCollateral;
+  const totalPortfolioValue = balance + MOCK_INSURANCE_VAULT + activeCollateral;
 
   // Calculate portfolio health score (0-100)
   const calculatePortfolioHealth = () => {
@@ -494,6 +496,16 @@ function App() {
         });
         setLivePrice(Number(initialPrice) / 10**8);
         setStatus('Ready to connect.');
+        
+        // Pre-fill username if available
+        const connectedAddresses = await window.ethereum?._metamask?.request({ method: 'eth_accounts' });
+        if (connectedAddresses && connectedAddresses.length > 0) {
+          const savedName = localStorage.getItem(connectedAddresses[0]);
+          if (savedName) {
+            setUserName(savedName);
+          }
+        }
+
       } catch (err) {
         console.error("Public init error:", err);
         setStatus('Error loading public data. Check console.');
@@ -501,6 +513,14 @@ function App() {
     }
     initPublicData();
   }, []); // Runs once on load
+
+  const handleConnect = async () => {
+    if (!userName.trim()) {
+      setStatus("Please enter a name to continue.");
+      return;
+    }
+    await connectWallet();
+  };
 
   // --- 3. WALLET FUNCTIONS (Connect & Disconnect) ---
   const connectWallet = async () => {
@@ -516,12 +536,12 @@ function App() {
         transport: custom(window.ethereum),
       });
 
-      // Force account selection
-      await walletClient.requestPermissions({ eth_accounts: {} });
-      const [accountAddress] = await walletClient.getAddresses();
+      // This will prompt the user to connect.
+      const [accountAddress] = await walletClient.requestAddresses();
       
       setAccount(accountAddress);
       setWallet(walletClient);
+      localStorage.setItem(accountAddress, userName);
       
       setStatus('Wallet Connected! Subscribing to streams...');
     } catch (err) {
@@ -533,6 +553,8 @@ function App() {
   const disconnectWallet = useCallback(() => {
     setWallet(null);
     setAccount(null);
+    setUserName('');
+    setBalance(0);
     setPositions({});
     setAlerts({});
     setSelectedPosition(null);
@@ -546,21 +568,25 @@ function App() {
 
     const handleAccountsChanged = (accounts) => {
       if (accounts.length > 0) {
-        if (account && accounts[0].toLowerCase() !== account.toLowerCase()) {
-          console.log("MetaMask account switched to:", accounts[0]);
-          setAccount(accounts[0]);
-          const newWalletClient = createWalletClient({
-            chain: somniaTestnet,
-            transport: custom(window.ethereum),
-            account: accounts[0],
-          });
-          setWallet(newWalletClient);
-        }
+        const newAccount = accounts[0];
+        console.log("MetaMask account switched to:", newAccount);
+        
+        // Update account and wallet client
+        setAccount(newAccount);
+        const newWalletClient = createWalletClient({
+          chain: somniaTestnet,
+          transport: custom(window.ethereum),
+          account: newAccount,
+        });
+        setWallet(newWalletClient);
+        
+        // Fetch username for the new account
+        const savedName = localStorage.getItem(newAccount);
+        setUserName(savedName || ''); 
+
       } else {
-        if (account) {
-          console.log("MetaMask user disconnected.");
-          disconnectWallet();
-        }
+        console.log("MetaMask user disconnected.");
+        disconnectWallet();
       }
     };
 
@@ -568,7 +594,24 @@ function App() {
     return () => {
       ethereum.removeListener('accountsChanged', handleAccountsChanged);
     };
-  }, [account, disconnectWallet]);
+  }, [disconnectWallet]);
+
+  useEffect(() => {
+    if (!account) return;
+
+    const fetchBalance = async () => {
+      try {
+        const balanceWei = await publicClient.getBalance({ address: account });
+        const balanceEth = Number(ethers.utils.formatEther(balanceWei));
+        setBalance(balanceEth);
+      } catch (err) {
+        console.error("Failed to fetch balance:", err);
+        setBalance(0); // Reset on error
+      }
+    };
+
+    fetchBalance();
+  }, [account]);
 
   // --- 4. SUBSCRIBE TO STREAMS (THE CORE!) ---
   useEffect(() => {
@@ -826,28 +869,34 @@ function App() {
           {/* Use the logo here. Assumes logo is in /public/GuardTrade Logo.png */}
           <img src="/GuardTrade Logo.png" alt="GuardTrade Logo" className="h-16 mx-auto mb-6" />
           <p className="text-xl text-white mb-4">
-            Imagine you're borrowing money to trade.
+            Welcome to your hyper-vigilant co-pilot for leveraged trading.
           </p>
-          <p className="text-lg text-gray-200 mb-8">
-            On most platforms, if the trade moves against you, they can suddenly close your position and take your money without warning. GuardTrade is a smart, hyper-vigilant co-pilot for your trades.
+          <p className="text-gray-300 text-base mb-8">
+            GuardTrade monitors your positions in real-time, providing proactive warnings and automated protection to prevent liquidation before it's too late.
           </p>
-          <div className="bg-brand-darkest p-6 rounded-lg text-left mb-8">
-            <h2 className="text-2xl font-serif text-white mb-4">Core Innovation</h2>
-            <p className="text-gray-300 text-base">
-              Instead of just letting you crash, GuardTrade sees trouble coming and gives you warnings and options to protect your position *before* it's too late.
-            </p>
-            <ul className="list-disc list-inside text-gray-300 mt-4 space-y-2 text-base">
-              <li><span className="text-white">Real-Time P&L</span> and Health Factor updates.</li>
-              <li><span className="text-white">Proactive Liquidation Warnings</span> with sub-second latency.</li>
-              <li><span className="text-white">Powered by Somnia</span> for high-speed, low-cost data.</li>
-            </ul>
+          
+          {/* --- NEW: Name Input --- */}
+          <div className="mb-6">
+            <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
+              Enter Your Name to Continue
+            </label>
+            <input
+              id="userName"
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="e.g., Vitalik Buterin"
+              className="w-full bg-brand-darkest border border-brand-gray-medium rounded-lg py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-brand-lightest"
+            />
           </div>
+          
           <p className="text-gray-400 mb-6 min-h-5 text-base">{status}</p>
           <button
-            onClick={connectWallet}
-            className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg"
+            onClick={handleConnect}
+            disabled={!userName.trim()}
+            className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Connect Wallet
+            Connect Wallet & Enter
           </button>
         </div>
       </div>
@@ -865,10 +914,11 @@ function App() {
           <img src="/GuardTrade Logo.png" alt="GuardTrade Logo" className="h-12" />
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
             <div className="text-right">
-              <div className="text-base font-mono bg-brand-dark px-3 py-1 rounded-md text-white">
+              {/* --- NEW: Display User Name --- */}
+              <div className="text-lg font-semibold text-white">{userName}</div>
+              <div className="text-base font-mono bg-brand-dark px-3 py-1 rounded-md text-gray-300">
                 {truncateAddress(account)}
               </div>
-              <p className="text-sm text-gray-400 mt-1 hidden sm:block">{status}</p>
             </div>
             <button
               onClick={connectWallet}
@@ -917,8 +967,8 @@ function App() {
               <div className="flex w-full h-8 rounded-full overflow-hidden mb-3">
                 <div 
                   className="bg-green-500 transition-all duration-500" 
-                  style={{width: `${(MOCK_WALLET_BALANCE / totalPortfolioValue) * 100}%`}}
-                  title={`Idle Funds: ${formatCurrency(MOCK_WALLET_BALANCE)}`}
+                  style={{width: `${(balance / totalPortfolioValue) * 100}%`}}
+                  title={`Idle Funds: ${formatCurrency(balance)}`}
                 ></div>
                 <div 
                   className="bg-blue-500 transition-all duration-500" 
@@ -935,7 +985,7 @@ function App() {
                 <div className="text-center">
                   <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
                   <div className="text-green-400 font-medium">Idle</div>
-                  <div className="text-gray-400">{formatCurrency(MOCK_WALLET_BALANCE)}</div>
+                  <div className="text-gray-400">{formatCurrency(balance)}</div>
                 </div>
                 <div className="text-center">
                   <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-1"></div>
