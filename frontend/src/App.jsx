@@ -14,9 +14,9 @@ const GuardianABI = {
 // --- END ABIs ---
 
 const CONTRACT_ADDRESSES = {
-  oracle: '0x01848F70e8D709891f960B7c7e7F62296CeFB7B5',    // <-- Your addresses are here
-  manager: '0x57b26fFb2C9E1858088c2C6f75Bcd7389F7a3708', // <-- Your addresses are here
-  guardian: '0x7D34EbDDea65ac01891DDd7bbce4A802a7982BF1'         // <-- Your addresses are here
+  oracle: '0x01848F70e8D709891f960B7c7e7F62296CeFB7B5',
+  manager: '0x57b26fFb2C9E1858088c2C6f75Bcd7389F7a3708',
+  guardian: '0x7D34EbDDea65ac01891DDd7bbce4A802a7982BF1'
 };
 
 const somniaTestnet = defineChain({
@@ -42,12 +42,23 @@ const truncateAddress = (address) => {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 };
 
+// --- PALETTE CONFIGURATION ---
+const PALETTE = {
+  background: '#1A1423',
+  surface: '#2C2337',
+  secondary: '#3D314A',
+  muted: '#684756',
+  accent1: '#7F5C59',
+  accent2: '#96705B',
+  primary: '#AB8476',
+};
+
 // --- MOCK DATA FOR GLOBAL PORTFOLIO ---
 const MOCK_WALLET_BALANCE = 5000; // $5,000 in "Idle Funds"
 const MOCK_INSURANCE_VAULT = 2500; // $2,500 in "Insurance Vault"
 // ----------------------------------------
 
-const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => {
+const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, priceHistory }) => {
   const [step, setStep] = useState(1); 
   const [selectedAsset, setSelectedAsset] = useState('ETH');
   const [leverage, setLeverage] = useState(3);
@@ -85,27 +96,27 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-[#2C2337] rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-[#3D314A]">
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-surface rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-secondary">
         
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-[#3D314A]">
-          <h2 className="text-2xl font-serif text-[#AB8476]">Open New Position</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-[#AB8476] text-2xl transition-colors">×</button>
+        <div className="flex justify-between items-center p-6 border-b border-secondary">
+          <h2 className="text-2xl font-serif text-primary">Open New Position</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-primary text-2xl transition-colors">×</button>
         </div>
 
         {/* Progress Steps */}
-        <div className="flex justify-center py-4 border-b border-[#3D314A] bg-[#1A1423]">
+        <div className="flex justify-center py-4 border-b border-secondary bg-background/50">
           <div className="flex items-center space-x-8">
             {[1, 2, 3].map((stepNum) => (
               <div key={stepNum} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                  step >= stepNum ? 'bg-[#AB8476] text-[#1A1423]' : 'bg-[#3D314A] text-gray-400'
+                  step >= stepNum ? 'bg-primary text-background' : 'bg-secondary text-gray-400'
                 } font-bold`}>
                   {stepNum}
                 </div>
                 <span className={`ml-2 text-sm font-medium ${
-                  step >= stepNum ? 'text-[#AB8476]' : 'text-gray-500'
+                  step >= stepNum ? 'text-primary' : 'text-gray-500'
                 }`}>
                   {stepNum === 1 && 'Setup'}
                   {stepNum === 2 && 'Protection'}
@@ -132,12 +143,12 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                         onClick={() => setSelectedAsset(asset)}
                         className={`p-4 rounded-lg border-2 text-center transition-all ${
                           selectedAsset === asset 
-                            ? 'border-[#AB8476] bg-[#AB8476] bg-opacity-10 text-white' 
-                            : 'border-[#3D314A] bg-[#1A1423] text-gray-400 hover:border-[#684756]'
+                            ? 'border-primary bg-primary/10 text-primary' 
+                            : 'border-secondary bg-background text-gray-400 hover:border-primary/50'
                         }`}
                       >
                         <div className="text-lg font-bold">{asset}</div>
-                        <div className="text-sm text-gray-400">Current: {formatCurrency(livePrice)}</div>
+                        <div className="text-sm opacity-80">Current: {formatCurrency(livePrice)}</div>
                       </button>
                     ))}
                   </div>
@@ -146,7 +157,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                 {/* Leverage Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Leverage: <span className="text-[#AB8476] font-bold">{leverage}x</span>
+                    Leverage: <span className="text-primary font-bold">{leverage}x</span>
                   </label>
                   <div className="space-y-2">
                     <input
@@ -156,11 +167,11 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                       step="1"
                       value={leverage}
                       onChange={(e) => setLeverage(Number(e.target.value))}
-                      className="w-full h-2 bg-[#3D314A] rounded-lg appearance-none cursor-pointer accent-[#AB8476]"
+                      className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-xs text-gray-400">
                       {[1, 3, 5, 7, 10].map(val => (
-                        <span key={val} className="cursor-pointer hover:text-[#AB8476]" onClick={() => setLeverage(val)}>
+                        <span key={val} className="cursor-pointer hover:text-primary" onClick={() => setLeverage(val)}>
                           {val}x
                         </span>
                       ))}
@@ -179,7 +190,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                       type="number"
                       value={collateral}
                       onChange={(e) => setCollateral(Number(e.target.value))}
-                      className="w-full bg-[#1A1423] border border-[#3D314A] rounded-lg py-3 pl-8 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-[#AB8476]"
+                      className="w-full bg-background border border-secondary rounded-lg py-3 pl-8 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary"
                       placeholder="0.00"
                     />
                   </div>
@@ -188,7 +199,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                       <button
                         key={amount}
                         onClick={() => setCollateral(amount)}
-                        className="text-xs bg-[#3D314A] hover:bg-[#684756] text-gray-300 py-1 px-3 rounded transition-colors"
+                        className="text-xs bg-secondary hover:bg-muted text-gray-300 py-1 px-3 rounded transition-colors"
                       >
                         ${amount}
                       </button>
@@ -198,7 +209,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
               </div>
 
               {/* Right Column - Live Preview */}
-              <div className="bg-[#1A1423] rounded-lg p-6 border border-[#3D314A]">
+              <div className="bg-background/50 rounded-lg p-6 border border-secondary">
                 <h3 className="text-lg font-semibold text-white mb-4">Position Preview</h3>
                 
                 <div className="space-y-4">
@@ -224,18 +235,18 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                   </div>
 
                   {/* Risk Level Indicator */}
-                  <div className="mt-4 p-4 rounded-lg border border-[#3D314A]">
+                  <div className="mt-4 p-4 rounded-lg border border-secondary bg-background">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-400">Risk Level</span>
                       <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                        riskLevel === 'Safe' ? 'bg-green-500 text-white' :
-                        riskLevel === 'Warning' ? 'bg-yellow-500 text-black' :
-                        riskLevel === 'Critical' ? 'bg-orange-500 text-white' : 'bg-red-500 text-white'
+                        riskLevel === 'Safe' ? 'bg-green-500/20 text-green-400' :
+                        riskLevel === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                        riskLevel === 'Critical' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'
                       }`}>
                         {riskLevel}
                       </span>
                     </div>
-                    <div className="w-full bg-[#3D314A] rounded-full h-2">
+                    <div className="w-full bg-secondary rounded-full h-2">
                       <div 
                         className={`h-2 rounded-full transition-all duration-300 ${
                           riskLevel === 'Safe' ? 'bg-green-500' :
@@ -248,19 +259,19 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                   </div>
 
                   {/* Mini Chart Visualization */}
-                  <div className="mt-4 bg-[#0F0A15] rounded p-3 border border-[#3D314A]">
+                  <div className="mt-4 bg-background rounded p-3 border border-secondary">
                     <div className="flex justify-between text-xs text-gray-400 mb-1">
                       <span>Current: {formatCurrency(livePrice)}</span>
                       <span>Liq: {formatCurrency(liquidationPrice)}</span>
                     </div>
-                    <div className="relative h-16 bg-[#1A1423] rounded">
-                      {/* Simple visualization */}
-                      <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-linear-to-r from-green-900/40 to-yellow-900/40 opacity-50"></div>
-                      <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-linear-to-r from-yellow-900/40 to-red-900/40 opacity-50"></div>
-                      <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
+                    <div className="relative h-16 bg-surface/30 rounded p-2">
+                      <div className="absolute inset-0 p-1">
+                        <Sparkline data={priceHistory?.ETH} height={60} width={300} />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-300 text-sm pointer-events-none">
                         <div className="text-center">
                           <div>Price: {formatCurrency(livePrice)}</div>
-                          <div className="text-red-400">Liq: {formatCurrency(liquidationPrice)}</div>
+                          <div className="text-red-400/80 text-xs">Liq: {formatCurrency(liquidationPrice)}</div>
                         </div>
                       </div>
                     </div>
@@ -302,7 +313,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                     enabled: protectionSettings.insuranceVault
                   }
                 ].map(setting => (
-                  <div key={setting.key} className="flex items-start space-x-4 p-4 bg-[#1A1423] rounded-lg border border-[#3D314A]">
+                  <div key={setting.key} className="flex items-start space-x-4 p-4 bg-background rounded-lg border border-secondary">
                     <div className="flex items-center h-6">
                       <input
                         type="checkbox"
@@ -311,7 +322,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                           ...prev,
                           [setting.key]: e.target.checked
                         }))}
-                        className="w-4 h-4 text-[#AB8476] bg-[#3D314A] border-gray-600 rounded focus:ring-[#AB8476]"
+                        className="w-4 h-4 text-primary bg-secondary border-secondary rounded focus:ring-primary accent-primary"
                       />
                     </div>
                     <div className="flex-1">
@@ -322,7 +333,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                 ))}
               </div>
 
-              <div className="bg-[#1A1423] rounded-lg p-6 border border-[#3D314A]">
+              <div className="bg-background/50 rounded-lg p-6 border border-secondary">
                 <h3 className="text-lg font-semibold text-white mb-4">Protection Summary</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
@@ -344,7 +355,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                     </span>
                   </div>
                   
-                  <div className="mt-6 p-4 bg-green-500 bg-opacity-10 border border-green-500 rounded-lg">
+                  <div className="mt-6 p-4 bg-green-900/10 border border-green-500/20 rounded-lg">
                     <div className="text-green-400 text-sm">
                       <strong>Your position will be actively monitored</strong> by GuardTrade's real-time protection system. You'll receive instant alerts and automated protection when needed.
                     </div>
@@ -357,15 +368,15 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
           {/* Step 3: Confirmation */}
           {step === 3 && (
             <div className="text-center space-y-6">
-              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-900/20">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-900/20 border border-green-500/50">
+                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
               
               <h3 className="text-2xl font-serif text-white">Ready to Open Position</h3>
               
-              <div className="bg-[#1A1423] rounded-lg p-6 max-w-md mx-auto border border-[#3D314A]">
+              <div className="bg-background rounded-lg p-6 max-w-md mx-auto border border-secondary">
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">Asset</span>
@@ -373,7 +384,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Leverage</span>
-                    <span className="text-[#AB8476] font-bold">{leverage}x</span>
+                    <span className="text-primary font-bold">{leverage}x</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Collateral</span>
@@ -398,10 +409,10 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
         </div>
 
         {/* Footer Navigation */}
-        <div className="flex justify-between p-6 border-t border-[#3D314A] bg-[#1A1423] rounded-b-xl">
+        <div className="flex justify-between p-6 border-t border-secondary bg-background rounded-b-xl">
           <button
             onClick={() => step > 1 ? setStep(step - 1) : onClose()}
-            className="px-6 py-3 border border-[#3D314A] text-gray-300 rounded-lg hover:bg-[#3D314A] transition"
+            className="px-6 py-3 border border-secondary text-gray-300 rounded-lg hover:bg-secondary transition"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
@@ -420,7 +431,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
                 onClose();
               }
             }}
-            className="px-6 py-3 bg-[#AB8476] text-[#1A1423] font-bold rounded-lg hover:bg-[#96705B] transition transform hover:scale-105 shadow-lg shadow-[#AB8476]/20"
+            className="px-6 py-3 bg-primary hover:bg-accent2 text-background font-bold rounded-lg transition transform hover:scale-105 shadow-lg shadow-primary/20"
           >
             {step === 3 ? 'Open Position' : 'Continue'}
           </button>
@@ -431,8 +442,42 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice }) => 
 };
 
 const formatCurrency = (value) => {
-  if (typeof value !== 'number') value = 0;
+  // Guard against undefined, NaN, and non-finite values
+  if (typeof value !== 'number' || !isFinite(value)) value = 0;
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+};
+
+// Simple inline sparkline SVG component
+const Sparkline = ({ data = [], width = 300, height = 64, stroke = 'var(--color-primary)', fill = 'var(--color-primary-alpha)' }) => {
+  if (!data || data.length === 0) return (
+    <svg width={width} height={height} className="w-full h-full" />
+  );
+
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1 || 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return [x, y];
+  });
+
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(' ');
+  const fillPathD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full">
+      <defs>
+        <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
+           <stop offset="0%" stopColor={stroke} stopOpacity="0.2"/>
+           <stop offset="100%" stopColor={stroke} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d={fillPathD} fill="url(#gradient)" stroke="none" />
+      <path d={pathD} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
 };
 
 function App() {
@@ -450,6 +495,16 @@ function App() {
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [isOpenPositionModal, setIsOpenPositionModal] = useState(false);
   const [protectionSettings, setProtectionSettings] = useState({});
+
+  // Maintain a small in-memory price history per asset for sparklines
+  const [priceHistory, setPriceHistory] = useState({ ETH: [livePrice] });
+
+  useEffect(() => {
+    setPriceHistory(prev => {
+      const list = (prev.ETH || []).concat([livePrice]).slice(-60); // keep last 60 samples
+      return { ...prev, ETH: list };
+    });
+  }, [livePrice]);
 
   const activeCollateral = Object.values(positions).reduce((acc, pos) => acc + pos.collateral, 0);
   const totalPortfolioValue = balance + MOCK_INSURANCE_VAULT + activeCollateral;
@@ -762,7 +817,7 @@ function App() {
         abi: LeverageManagerABI.abi,
         functionName: 'openPosition',
         args: [
-          BigInt(collateral * 10**8), 
+          BigInt(Math.round(collateral * 10**8)), 
           BigInt(leverage), 
           0 
         ]
@@ -809,7 +864,8 @@ function App() {
       setAlerts(prev => ({...prev, [Number(newPosId)]: {level: "Safe", time: new Date().toLocaleTimeString()}}))
 
     } catch (err) { 
-      console.error("Open position error:", err);
+      console.log("Open position error:", err);
+      alert("Error opening position: " + err.message);
       setStatus("Error opening position. Check console.");
     }
   };
@@ -901,541 +957,591 @@ function App() {
 
   const selectedPositionData = selectedPosition ? positions[selectedPosition] : null;
 
-  if (!account) {
-    return (
-      <div className="min-h-screen bg-[#1A1423] text-gray-200 flex items-center justify-center p-8 font-sans">
-        <div className="max-w-xl w-full text-center bg-[#2C2337] p-10 rounded-xl shadow-2xl border border-[#3D314A]">
-          {/* Logo updated to valid web path */}
-          <img src="/GuardTrade_logo.png" alt="GuardTrade Logo" className="h-20 mx-auto mb-6 drop-shadow-lg" />          
-          <p className="text-2xl text-white font-serif mb-4">
-            Welcome to GuardTrade
-          </p>
-          <p className="text-gray-400 text-base mb-8">
-            GuardTrade is your hyper-vigilant co-pilot for leveraged trading. It monitors your positions in real-time, providing proactive warnings and automated protection to prevent liquidation before it's too late.
-          </p>
-          
-          <div className="mb-6 text-left">
-            <label htmlFor="userName" className="block text-sm font-medium text-[#AB8476] mb-2">
-              Enter Name for this Account
-            </label>
-            
-            {detectedAddress && (
-                <div className="mb-4 p-3 bg-[#1A1423] rounded border border-[#3D314A] text-xs font-mono text-gray-400">
-                    Target Wallet: {detectedAddress}
-                </div>
-            )}
-
-            <input
-              id="userName"
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="e.g., Vitalik Buterin"
-              className="w-full bg-[#1A1423] border border-[#3D314A] rounded-lg py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-[#AB8476]"
-            />
-          </div>
-          
-          <p className="text-gray-400 mb-6 min-h-5 text-base">{status}</p>
-          
-          <div className="space-y-3">
-            <button
-                onClick={handleConnect}
-                disabled={!userName.trim()}
-                className="w-full bg-[#AB8476] hover:bg-[#96705B] text-[#1A1423] font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-                {detectedAddress ? "Save Name & Enter" : "Connect Wallet & Enter"}
-            </button>
-            
-            <button
-                onClick={handleSwitchAccount}
-                className="w-full bg-transparent border border-[#3D314A] hover:bg-[#3D314A] text-gray-300 font-medium py-3 px-4 rounded-lg transition"
-            >
-                Switch Wallet
-            </button>
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#1A1423] text-gray-200 font-sans p-6 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* --- Header --- */}
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-8 pb-4 border-b border-[#2C2337]">
-          
-          <div className="flex items-center gap-4">
-            <img src="/GuardTrade_logo.png" alt="GuardTrade Logo" className="h-12 drop-shadow-md" />
-            <h1 className="text-5xl font-serif text-white tracking-wide">GuardTrade</h1>
-          </div>
+    <>
+      <style>{`
+        :root {
+          --color-background: ${PALETTE.background};
+          --color-surface: ${PALETTE.surface};
+          --color-secondary: ${PALETTE.secondary};
+          --color-muted: ${PALETTE.muted};
+          --color-accent1: ${PALETTE.accent1};
+          --color-accent2: ${PALETTE.accent2};
+          --color-primary: ${PALETTE.primary};
+          --color-text-main: #F3F4F6;
+          --color-text-muted: #9CA3AF;
+        }
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
-            <div className="text-right">
-              {/* --- Display User Name --- */}
-              <div className="text-lg font-semibold text-[#AB8476]">{userName}</div>
-              <div className="text-base font-mono bg-[#2C2337] px-3 py-1 rounded-md text-gray-400 border border-[#3D314A]">
-                {truncateAddress(account)}
-              </div>
-            </div>
-            <button
-              onClick={handleSwitchAccount}
-              className="bg-[#2C2337] hover:bg-[#3D314A] text-white text-base font-medium py-2 px-4 rounded-lg transition border border-[#3D314A]"
-            >
-              Switch Account
-            </button>
-            <button
-              onClick={disconnectWallet}
-              className="bg-[#2C2337] hover:bg-red-900/50 hover:text-red-200 hover:border-red-800 text-white text-base font-medium py-2 px-4 rounded-lg transition border border-[#3D314A]"
-            >
-              Disconnect
-            </button>
-          </div>
-        </header>
+        body {
+          background-color: var(--color-background);
+          color: var(--color-text-main);
+        }
 
-        {/* --- Section 1: Global Portfolio Health --- */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-serif mb-4 text-white">Global Portfolio</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        .bg-background { background-color: var(--color-background) !important; }
+        .bg-surface { background-color: var(--color-surface) !important; }
+        .bg-secondary { background-color: var(--color-secondary) !important; }
+        .bg-primary { background-color: var(--color-primary) !important; }
+        .bg-muted { background-color: var(--color-muted) !important; }
+        .bg-accent1 { background-color: var(--color-accent1) !important; }
+        .bg-accent2 { background-color: var(--color-accent2) !important; }
+
+        .text-primary { color: var(--color-primary) !important; }
+        .text-secondary { color: var(--color-text-muted) !important; }
+        .text-background { color: var(--color-background) !important; }
+        .text-accent2 { color: var(--color-accent2) !important; }
+
+        .border-secondary { border-color: var(--color-secondary) !important; }
+        .border-primary { border-color: var(--color-primary) !important; }
+
+        .hover\\:bg-secondary:hover { background-color: var(--color-secondary) !important; }
+        .hover\\:bg-muted:hover { background-color: var(--color-muted) !important; }
+        .hover\\:bg-accent2:hover { background-color: var(--color-accent2) !important; }
+
+        .hover\\:text-primary:hover { color: var(--color-primary) !important; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--color-background); }
+        ::-webkit-scrollbar-thumb { background: var(--color-secondary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+      `}</style>
+      
+      {!account ? (
+        <div className="min-h-screen bg-background text-gray-200 flex items-center justify-center p-8 font-sans">
+          <div className="max-w-xl w-full text-center bg-surface p-10 rounded-xl shadow-2xl border border-secondary">
+            {/* Logo updated to valid web path */}
+            <img src="/GuardTrade_logo.png" alt="GuardTrade Logo" className="h-20 mx-auto mb-6 drop-shadow-lg" />          
+            <p className="text-2xl text-white font-serif mb-4">
+              Welcome to GuardTrade
+            </p>
+            <p className="text-gray-400 text-base mb-8">
+              GuardTrade is your hyper-vigilant co-pilot for leveraged trading. It monitors your positions in real-time, providing proactive warnings and automated protection to prevent liquidation before it's too late.
+            </p>
             
-            {/* Card 1: Total Value & Health */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <p className="text-sm text-gray-400 uppercase tracking-wider">Total Portfolio Value</p>
-              <p className="text-4xl font-mono font-bold text-white mt-1">
-                {formatCurrency(totalPortfolioValue)}
-              </p>
-              <div className="flex items-center mt-3">
-                <div className="w-full bg-[#1A1423] rounded-full h-3 mr-3">
-                  <div
-                    className={`h-3 rounded-full ${getHealthBgColor(portfolioHealth)}`}
-                    style={{ width: `${portfolioHealth}%` }}
-                  ></div>
-                </div>
-                <span className={`text-sm font-bold ${getHealthColor(portfolioHealth)}`}>
-                  {portfolioHealth.toFixed(0)}/100
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Global Health Score</p>
-            </div>
+            <div className="mb-6 text-left">
+              <label htmlFor="userName" className="block text-sm font-medium text-primary mb-2">
+                Enter Name for this Account
+              </label>
+              
+              {detectedAddress && (
+                  <div className="mb-4 p-3 bg-background rounded border border-secondary text-xs font-mono text-gray-400">
+                      Target Wallet: {detectedAddress}
+                  </div>
+              )}
 
-            {/* Card 2: Funds Allocation Visual */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <p className="text-sm text-gray-400 uppercase mb-3 tracking-wider">Funds Allocation</p>
-              {/* Visual representation of fund allocation */}
-              <div className="flex w-full h-8 rounded-full overflow-hidden mb-3 bg-[#1A1423]">
-                <div 
-                  className="bg-green-600 transition-all duration-500" 
-                  style={{width: `${(balance / totalPortfolioValue) * 100}%`}}
-                  title={`Idle Funds: ${formatCurrency(balance)}`}
-                ></div>
-                <div 
-                  className="bg-blue-600 transition-all duration-500" 
-                  style={{width: `${(activeCollateral / totalPortfolioValue) * 100}%`}}
-                  title={`Active Collateral: ${formatCurrency(activeCollateral)}`}
-                ></div>
-                <div 
-                  className="bg-[#AB8476] transition-all duration-500" 
-                  style={{width: `${(MOCK_INSURANCE_VAULT / totalPortfolioValue) * 100}%`}}
-                  title={`Insurance Vault: ${formatCurrency(MOCK_INSURANCE_VAULT)}`}
-                ></div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="text-center">
-                  <div className="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
-                  <div className="text-green-500 font-medium">Idle</div>
-                  <div className="text-gray-400">{formatCurrency(balance)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-                  <div className="text-blue-500 font-medium">Active</div>
-                  <div className="text-gray-400">{formatCurrency(activeCollateral)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="w-3 h-3 bg-[#AB8476] rounded-full mx-auto mb-1"></div>
-                  <div className="text-[#AB8476] font-medium">Vault</div>
-                  <div className="text-gray-400">{formatCurrency(MOCK_INSURANCE_VAULT)}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Risk Overview */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <p className="text-sm text-gray-400 uppercase tracking-wider">Risk Overview</p>
-              <div className="mt-3 space-y-2">
-                <div className="flex justify-between items-center p-2 rounded hover:bg-[#3D314A] transition">
-                  <span className="text-gray-300">Active Positions:</span>
-                  <span className="text-white font-bold">{Object.keys(positions).length}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded hover:bg-[#3D314A] transition">
-                  <span className="text-gray-300">At Risk:</span>
-                  <span className="text-red-400 font-bold">
-                    {Object.values(alerts).filter(alert => alert.level !== "Safe").length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded hover:bg-[#3D314A] transition">
-                  <span className="text-gray-300">Protected:</span>
-                  <span className="text-green-400 font-bold">
-                    {Object.values(alerts).filter(alert => alert.level === "Safe").length}
-                  </span>
-                </div>
-              </div>
+              <input
+                id="userName"
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="e.g., Vitalik Buterin"
+                className="w-full bg-background border border-secondary rounded-lg py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
             
-            {/* Card 4: Quick Actions */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg flex flex-col justify-center border border-[#3D314A]">
+            <p className="text-gray-400 mb-6 min-h-5 text-base">{status}</p>
+            
+            <div className="space-y-3">
               <button
-                onClick={() => setIsOpenPositionModal(true)}
-                className="w-full bg-[#AB8476] hover:bg-[#96705B] text-[#1A1423] font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3 shadow-lg shadow-[#AB8476]/20"
+                  onClick={handleConnect}
+                  disabled={!userName.trim()}
+                  className="w-full bg-primary hover:bg-accent2 text-background font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                Open Protected Position
+                  {detectedAddress ? "Save Name & Enter" : "Connect Wallet & Enter"}
               </button>
-              <p className="text-sm text-gray-400 text-center">Custom leverage & protection</p>
+              
+              <button
+                  onClick={handleSwitchAccount}
+                  className="w-full bg-transparent border border-secondary hover:bg-secondary text-gray-300 font-medium py-3 px-4 rounded-lg transition"
+              >
+                  Switch Wallet
+              </button>
             </div>
 
           </div>
-        </section>
-
-        {/* --- Dashboard Layout (Main + Sidebar) --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* --- Section 2: Active Positions (Main Column) --- */}
-          <main className="lg:col-span-2 space-y-6">
+        </div>
+      ) : (
+        <div className="min-h-screen bg-background text-gray-200 font-sans p-6 sm:p-8">
+          <div className="max-w-7xl mx-auto">
             
-            {/* Positions Table */}
-            <div>
-              <h2 className="text-3xl font-serif mb-4 text-white">Active Positions</h2>
-              <div className="bg-[#2C2337] rounded-lg shadow-lg overflow-hidden border border-[#3D314A]">
-                <table className="w-full text-left">
-                  <thead className="border-b border-[#3D314A] bg-[#1A1423]">
-                    <tr className="text-sm text-[#AB8476] uppercase tracking-wider">
-                      <th className="p-4">Pair / Direction</th>
-                      <th className="p-4">Size / Entry</th>
-                      <th className="p-4">Live P&L</th>
-                      <th className="p-4">Liq. Price</th>
-                      <th className="p-4">Health Factor</th>
-                      <th className="p-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.keys(positions).length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="p-10 text-center text-gray-400">
-                          <p className="text-xl text-[#AB8476]">No active positions.</p>
-                          <p className="text-base mt-2">
-                            Click "Open Protected Position" above to get started.
-                          </p>
-                        </td>
-                      </tr>
-                    ) : (
-                      Object.values(positions).map(pos => {
-                        const pnl = getPnl(pos);
-                        const liqPrice = getLiqPrice(pos);
-                        const size = pos.collateral * pos.leverage;
-                        const alert = alerts[pos.id] || {level: "Safe"};
-                        const healthPercent = Math.max(0, pos.healthFactor * 100);
-                        const isSelected = selectedPosition === pos.id;
-                        const posProtection = protectionSettings[pos.id];
-                        
-                        return (
-                          <tr 
-                            key={pos.id} 
-                            className={`border-b border-[#3D314A] hover:bg-[#3D314A] transition cursor-pointer ${
-                              isSelected ? 'bg-[#3D314A] border-l-4 border-l-[#AB8476]' : ''
-                            }`}
-                            onClick={() => setSelectedPosition(pos.id)}
-                          >
-                            <td className="p-4">
-                              <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
-                              <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
-                              {posProtection?.autoAddCollateral && (
-                                <div className="text-xs text-[#AB8476] mt-1 font-semibold">🛡️ Protected</div>
-                              )}
-                            </td>
-                            <td className="p-4 font-mono">
-                              <div className="text-white">{formatCurrency(size)}</div>
-                              <div className="text-sm text-gray-400">@{formatCurrency(pos.entryPrice)}</div>
-                            </td>
-                            <td className={`p-4 font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
-                              <div className="text-xs text-gray-400">
-                                {((pnl / (pos.collateral)) * 100).toFixed(1)}%
-                              </div>
-                            </td>
-                            <td className="p-4 font-mono text-red-400 font-bold">
-                              {formatCurrency(liqPrice)}
-                            </td>
-                            <td className="p-4">
-                              <div className="w-full bg-[#1A1423] rounded-full h-4 mb-2">
-                                <div
-                                  className="h-4 rounded-full transition-all duration-300"
-                                  style={{ 
-                                    width: `${Math.min(100, healthPercent)}%`,
-                                    background: healthPercent >= 70 ? 'linear-gradient(90deg, #10B981, #22C55E)' : 
-                                               healthPercent >= 40 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 
-                                               'linear-gradient(90deg, #EF4444, #DC2626)'
-                                  }}
-                                ></div>
-                              </div>
-                              <div className={`text-sm font-mono ${getRiskColor(alert.level)}`}>
-                                {healthPercent.toFixed(1)}%
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getRiskBgColor(alert.level)}`}>
-                                {alert.level}
-                              </span>
+            {/* --- Header --- */}
+            <header className="flex flex-col sm:flex-row justify-between items-center mb-8 pb-4 border-b border-secondary">
+              
+              <div className="flex items-center gap-4">
+                <img src="/GuardTrade_logo.png" alt="GuardTrade Logo" className="h-12 drop-shadow-md" />
+                <h1 className="text-5xl font-serif text-white tracking-wide">GuardTrade</h1>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
+                <div className="text-right">
+                  {/* --- Display User Name --- */}
+                  <div className="text-lg font-semibold text-primary">{userName}</div>
+                  <div className="text-base font-mono bg-surface px-3 py-1 rounded-md text-gray-400 border border-secondary">
+                    {truncateAddress(account)}
+                  </div>
+                </div>
+                <button
+                  onClick={handleSwitchAccount}
+                  className="bg-surface hover:bg-secondary text-white text-base font-medium py-2 px-4 rounded-lg transition border border-secondary"
+                >
+                  Switch Account
+                </button>
+                <button
+                  onClick={disconnectWallet}
+                  className="bg-surface hover:bg-red-900/50 hover:text-red-200 hover:border-red-800 text-white text-base font-medium py-2 px-4 rounded-lg transition border border-secondary"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </header>
+
+            {/* --- Section 1: Global Portfolio Health --- */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-serif mb-4 text-white">Global Portfolio</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                
+                {/* Card 1: Total Value & Health */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <p className="text-sm text-gray-400 uppercase tracking-wider">Total Portfolio Value</p>
+                  <p className="text-4xl font-mono font-bold text-white mt-1">
+                    {formatCurrency(totalPortfolioValue)}
+                  </p>
+                  <div className="flex items-center mt-3">
+                    <div className="w-full bg-background rounded-full h-3 mr-3">
+                      <div
+                        className={`h-3 rounded-full ${getHealthBgColor(portfolioHealth)}`}
+                        style={{ width: `${portfolioHealth}%` }}
+                      ></div>
+                    </div>
+                    <span className={`text-sm font-bold ${getHealthColor(portfolioHealth)}`}>
+                      {portfolioHealth.toFixed(0)}/100
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Global Health Score</p>
+                </div>
+
+                {/* Card 2: Funds Allocation Visual */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <p className="text-sm text-gray-400 uppercase mb-3 tracking-wider">Funds Allocation</p>
+                  {/* Visual representation of fund allocation */}
+                  <div className="flex w-full h-8 rounded-full overflow-hidden mb-3 bg-background">
+                    <div 
+                      className="bg-green-600 transition-all duration-500" 
+                      style={{width: `${(balance / totalPortfolioValue) * 100}%`}}
+                      title={`Idle Funds: ${formatCurrency(balance)}`}
+                    ></div>
+                    <div 
+                      className="bg-accent1 transition-all duration-500" 
+                      style={{width: `${(activeCollateral / totalPortfolioValue) * 100}%`}}
+                      title={`Active Collateral: ${formatCurrency(activeCollateral)}`}
+                    ></div>
+                    <div 
+                      className="bg-primary transition-all duration-500" 
+                      style={{width: `${(MOCK_INSURANCE_VAULT / totalPortfolioValue) * 100}%`}}
+                      title={`Insurance Vault: ${formatCurrency(MOCK_INSURANCE_VAULT)}`}
+                    ></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
+                      <div className="text-green-500 font-medium">Idle</div>
+                      <div className="text-gray-400">{formatCurrency(balance)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-accent1 rounded-full mx-auto mb-1"></div>
+                      <div className="text-accent1 font-medium">Active</div>
+                      <div className="text-gray-400">{formatCurrency(activeCollateral)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-primary rounded-full mx-auto mb-1"></div>
+                      <div className="text-primary font-medium">Vault</div>
+                      <div className="text-gray-400">{formatCurrency(MOCK_INSURANCE_VAULT)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Risk Overview */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <p className="text-sm text-gray-400 uppercase tracking-wider">Risk Overview</p>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-between items-center p-2 rounded hover:bg-secondary transition">
+                      <span className="text-gray-300">Active Positions:</span>
+                      <span className="text-white font-bold">{Object.keys(positions).length}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded hover:bg-secondary transition">
+                      <span className="text-gray-300">At Risk:</span>
+                      <span className="text-red-400 font-bold">
+                        {Object.values(alerts).filter(alert => alert.level !== "Safe").length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded hover:bg-secondary transition">
+                      <span className="text-gray-300">Protected:</span>
+                      <span className="text-green-400 font-bold">
+                        {Object.values(alerts).filter(alert => alert.level === "Safe").length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Card 4: Quick Actions */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg flex flex-col justify-center border border-secondary">
+                  <button
+                    onClick={() => setIsOpenPositionModal(true)}
+                    className="w-full bg-primary hover:bg-accent2 text-background font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3 shadow-lg shadow-primary/20"
+                  >
+                    Open Protected Position
+                  </button>
+                  <p className="text-sm text-gray-400 text-center">Custom leverage & protection</p>
+                </div>
+
+              </div>
+            </section>
+
+            {/* --- Dashboard Layout (Main + Sidebar) --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* --- Section 2: Active Positions (Main Column) --- */}
+              <main className="lg:col-span-2 space-y-6">
+                
+                {/* Positions Table */}
+                <div>
+                  <h2 className="text-3xl font-serif mb-4 text-white">Active Positions</h2>
+                  <div className="bg-surface rounded-lg shadow-lg overflow-hidden border border-secondary">
+                    <table className="w-full text-left">
+                      <thead className="border-b border-secondary bg-background">
+                        <tr className="text-sm text-primary uppercase tracking-wider">
+                          <th className="p-4">Pair / Direction</th>
+                          <th className="p-4">Size / Entry</th>
+                          <th className="p-4">Live P&L</th>
+                          <th className="p-4">Liq. Price</th>
+                          <th className="p-4">Health Factor</th>
+                          <th className="p-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.keys(positions).length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="p-10 text-center text-gray-400">
+                              <p className="text-xl text-primary">No active positions.</p>
+                              <p className="text-base mt-2">
+                                Click "Open Protected Position" above to get started.
+                              </p>
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        ) : (
+                          Object.values(positions).map(pos => {
+                            const pnl = getPnl(pos);
+                            const liqPrice = getLiqPrice(pos);
+                            const size = pos.collateral * pos.leverage;
+                            const alert = alerts[pos.id] || {level: "Safe"};
+                            const healthPercent = Math.max(0, pos.healthFactor * 100);
+                            const isSelected = selectedPosition === pos.id;
+                            const posProtection = protectionSettings[pos.id];
+                            
+                            return (
+                              <tr 
+                                key={pos.id} 
+                                className={`border-b border-secondary hover:bg-secondary transition cursor-pointer ${
+                                  isSelected ? 'bg-secondary border-l-4 border-l-primary' : ''
+                                }`}
+                                onClick={() => setSelectedPosition(pos.id)}
+                              >
+                                <td className="p-4">
+                                  <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
+                                  <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
+                                  {posProtection?.autoAddCollateral && (
+                                    <div className="text-xs text-primary mt-1 font-semibold">🛡️ Protected</div>
+                                  )}
+                                </td>
+                                <td className="p-4 font-mono">
+                                  <div className="text-white">{formatCurrency(size)}</div>
+                                  <div className="text-sm text-gray-400">@{formatCurrency(pos.entryPrice)}</div>
+                                </td>
+                                <td className={`p-4 font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                                  <div className="text-xs text-gray-400">
+                                    {((pnl / (pos.collateral)) * 100).toFixed(1)}%
+                                  </div>
+                                </td>
+                                <td className="p-4 font-mono text-red-400 font-bold">
+                                  {formatCurrency(liqPrice)}
+                                </td>
+                                <td className="p-4">
+                                  <div className="w-full bg-background rounded-full h-4 mb-2">
+                                    <div
+                                      className="h-4 rounded-full transition-all duration-300"
+                                      style={{ 
+                                        width: `${Math.min(100, healthPercent)}%`,
+                                        background: healthPercent >= 70 ? 'linear-gradient(90deg, #10B981, #22C55E)' : 
+                                                   healthPercent >= 40 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 
+                                                   'linear-gradient(90deg, #EF4444, #DC2626)'
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <div className={`text-sm font-mono ${getRiskColor(alert.level)}`}>
+                                    {healthPercent.toFixed(1)}%
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getRiskBgColor(alert.level)}`}>
+                                    {alert.level}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-            {/* Position Details & Chart Section */}
-            {selectedPositionData && (
-              <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-                <h2 className="text-2xl font-serif mb-4 text-white flex items-center">
-                  Position Details #{selectedPosition}
-                  {protectionSettings[selectedPosition]?.autoAddCollateral && (
-                    <span className="ml-3 text-sm bg-green-500/20 text-green-400 border border-green-500/50 px-2 py-1 rounded-full">🛡️ Protected</span>
-                  )}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Chart Placeholder */}
-                  <div className="bg-[#1A1423] p-4 rounded-lg border border-[#3D314A]">
-                    <h3 className="text-lg font-semibold text-[#AB8476] mb-3">Live Price Chart</h3>
-                    <div className="h-48 flex items-center justify-center bg-[#2C2337]/50 rounded border border-[#3D314A] border-dashed">
-                      <div className="text-center text-gray-400">
-                        <div className="text-2xl mb-2">📊</div>
-                        <p>Live chart for {selectedPositionData.asset || 'ETH'}/USD</p>
-                        <p className="text-sm mt-1">Current: {formatCurrency(livePrice)}</p>
-                        <p className="text-sm">Entry: {formatCurrency(selectedPositionData.entryPrice)}</p>
-                        <p className="text-sm text-red-400">
-                          Liquidation: {formatCurrency(getLiqPrice(selectedPositionData))}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Position Metrics */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-[#AB8476]">Key Metrics</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-[#1A1423] p-3 rounded border border-[#3D314A]">
-                        <p className="text-sm text-gray-400">Collateral</p>
-                        <p className="text-lg font-bold text-white">
-                          {formatCurrency(selectedPositionData.collateral)}
-                        </p>
-                      </div>
-                      <div className="bg-[#1A1423] p-3 rounded border border-[#3D314A]">
-                        <p className="text-sm text-gray-400">Leverage</p>
-                        <p className="text-lg font-bold text-[#AB8476]">
-                          {selectedPositionData.leverage}x
-                        </p>
-                      </div>
-                      <div className="bg-[#1A1423] p-3 rounded border border-[#3D314A]">
-                        <p className="text-sm text-gray-400">Position Size</p>
-                        <p className="text-lg font-bold text-white">
-                          {formatCurrency(selectedPositionData.collateral * selectedPositionData.leverage)}
-                        </p>
-                      </div>
-                      <div className="bg-[#1A1423] p-3 rounded border border-[#3D314A]">
-                        <p className="text-sm text-gray-400">Distance to Liq.</p>
-                        <p className="text-lg font-bold text-red-400">
-                          {((livePrice - getLiqPrice(selectedPositionData)) / livePrice * 100).toFixed(1)}%
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Protection Settings */}
-                    {protectionSettings[selectedPosition] && (
-                      <div className="bg-[#1A1423] p-4 rounded border border-[#3D314A]">
-                        <p className="text-sm text-gray-400 mb-2">Protection Settings</p>
-                        <div className="flex flex-wrap gap-2">
-                          {protectionSettings[selectedPosition].autoAddCollateral && (
-                            <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/50 px-2 py-1 rounded">Auto-Collateral</span>
-                          )}
-                          {protectionSettings[selectedPosition].emergencyClose && (
-                            <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-1 rounded">Emergency Close</span>
-                          )}
-                          {protectionSettings[selectedPosition].insuranceVault && (
-                            <span className="text-xs bg-[#AB8476]/20 text-[#AB8476] border border-[#AB8476]/50 px-2 py-1 rounded">Vault Access</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="bg-[#1A1423] p-4 rounded border border-[#3D314A]">
-                      <p className="text-sm text-gray-400 mb-2">Current Status</p>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-lg font-bold ${getRiskColor(alerts[selectedPosition]?.level || "Safe")}`}>
-                          {alerts[selectedPosition]?.level || "Safe"}
-                        </span>
-                        <button
-                          onClick={() => checkRisk(selectedPosition)}
-                          className="bg-[#3D314A] hover:bg-[#684756] hover:text-white text-gray-200 py-2 px-4 rounded transition border border-gray-600"
-                        >
-                          Check Risk
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </main>
-          
-          {/* --- Sidebar --- */}
-          <aside className="lg:col-span-1 space-y-6">
-            
-            {/* Live Market Card */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <h2 className="text-2xl font-serif mb-4 text-white">Live Market</h2>
-              <div className="text-center">
-                <p className="text-sm text-gray-400 uppercase tracking-wider">ETH-USD</p>
-                <p className="text-5xl font-mono font-bold text-white my-4">
-                  {formatCurrency(livePrice)}
-                </p>
-                <div className="text-sm text-[#AB8476]">
-                  Real-time via Somnia Streams
-                </div>
-              </div>
-            </div>
-            
-            {/* Insurance Vault Card */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <h2 className="text-2xl font-serif mb-4 text-white">Insurance Vault</h2>
-              <div className="text-center mb-4">
-                <p className="text-sm text-gray-400 uppercase tracking-wider">Vault Balance</p>
-                <p className="text-4xl font-mono font-bold text-white my-3">
-                  {formatCurrency(MOCK_INSURANCE_VAULT)}
-                </p>
-                <div className="w-24 h-24 mx-auto mb-4 relative">
-                  <svg className="w-full h-full" viewBox="0 0 36 36">
-                    <path
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="#3D314A"
-                      strokeWidth="3"
-                    />
-                    <path
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="#AB8476"
-                      strokeWidth="3"
-                      strokeDasharray="70, 100"
-                    />
-                    <text x="18" y="20.5" textAnchor="middle" fill="#AB8476" fontSize="8" fontWeight="bold">70%</text>
-                  </svg>
-                </div>
-                <p className="text-sm text-gray-300">Protection Coverage</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="flex-1 bg-[#3D314A] text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
-                  Deposit
-                </button>
-                <button className="flex-1 bg-[#3D314A] text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
-                  Withdraw
-                </button>
-              </div>
-            </div>
-            
-            {/* Alerts Panel */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <h2 className="text-2xl font-serif mb-4 text-white">Active Alerts</h2>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {Object.keys(alerts).length === 0 ? (
-                  <div className="text-center py-4">
-                    <div className="text-2xl mb-2">✅</div>
-                    <p className="text-base text-gray-400">No active alerts</p>
-                    <p className="text-sm text-gray-500">All positions are safe</p>
-                  </div>
-                ) : (
-                  Object.entries(alerts).map(([posId, alert]) => (
-                    <div 
-                      key={posId} 
-                      className={`p-3 rounded-lg border-l-4 ${
-                        alert.level === "Critical" || alert.level === "Immediate Risk" 
-                          ? 'border-red-500 bg-red-900/20' 
-                          : alert.level === "Warning" 
-                          ? 'border-yellow-500 bg-yellow-900/20'
-                          : 'border-green-500 bg-green-900/20'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className={`font-bold ${
-                            alert.level === "Critical" || alert.level === "Immediate Risk" 
-                              ? 'text-red-400' 
-                              : alert.level === "Warning" 
-                              ? 'text-yellow-400'
-                              : 'text-green-400'
-                          }`}>
-                            {alert.level.toUpperCase()}
+                {/* Position Details & Chart Section */}
+                {selectedPositionData && (
+                  <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                    <h2 className="text-2xl font-serif mb-4 text-white flex items-center">
+                      Position Details #{selectedPosition}
+                      {protectionSettings[selectedPosition]?.autoAddCollateral && (
+                        <span className="ml-3 text-sm bg-green-500/20 text-green-400 border border-green-500/50 px-2 py-1 rounded-full">🛡️ Protected</span>
+                      )}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Chart Placeholder */}
+                      <div className="bg-background p-4 rounded-lg border border-secondary">
+                        <h3 className="text-lg font-semibold text-primary mb-3">Live Price Chart</h3>
+                        <div className="h-48 bg-surface/30 rounded border border-secondary border-dashed p-3">
+                          <div className="h-full w-full relative">
+                            <div className="absolute inset-0 p-2">
+                              <Sparkline data={priceHistory[selectedPositionData.asset || 'ETH'] || priceHistory.ETH} height={120} />
+                            </div>
+                            <div className="absolute left-3 top-3 text-sm text-gray-300 z-10">
+                              <div className="text-lg font-semibold">{selectedPositionData.asset || 'ETH'}/USD</div>
+                              <div className="text-sm">Current: {formatCurrency(livePrice)}</div>
+                              <div className="text-sm">Entry: {formatCurrency(selectedPositionData.entryPrice)}</div>
+                              <div className="text-sm text-red-400">Liquidation: {formatCurrency(getLiqPrice(selectedPositionData))}</div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-200 mt-1">Position #{posId}</p>
                         </div>
-                        <span className="text-xs text-gray-400">{alert.time}</span>
+                      </div>
+
+                      {/* Position Metrics */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-primary">Key Metrics</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-background p-3 rounded border border-secondary">
+                            <p className="text-sm text-gray-400">Collateral</p>
+                            <p className="text-lg font-bold text-white">
+                              {formatCurrency(selectedPositionData.collateral)}
+                            </p>
+                          </div>
+                          <div className="bg-background p-3 rounded border border-secondary">
+                            <p className="text-sm text-gray-400">Leverage</p>
+                            <p className="text-lg font-bold text-primary">
+                              {selectedPositionData.leverage}x
+                            </p>
+                          </div>
+                          <div className="bg-background p-3 rounded border border-secondary">
+                            <p className="text-sm text-gray-400">Position Size</p>
+                            <p className="text-lg font-bold text-white">
+                              {formatCurrency(selectedPositionData.collateral * selectedPositionData.leverage)}
+                            </p>
+                          </div>
+                          <div className="bg-background p-3 rounded border border-secondary">
+                            <p className="text-sm text-gray-400">Distance to Liq.</p>
+                            <p className="text-lg font-bold text-red-400">
+                              {((livePrice - getLiqPrice(selectedPositionData)) / livePrice * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Protection Settings */}
+                        {protectionSettings[selectedPosition] && (
+                          <div className="bg-background p-4 rounded border border-secondary">
+                            <p className="text-sm text-gray-400 mb-2">Protection Settings</p>
+                            <div className="flex flex-wrap gap-2">
+                              {protectionSettings[selectedPosition].autoAddCollateral && (
+                                <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/50 px-2 py-1 rounded">Auto-Collateral</span>
+                              )}
+                              {protectionSettings[selectedPosition].emergencyClose && (
+                                <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-1 rounded">Emergency Close</span>
+                              )}
+                              {protectionSettings[selectedPosition].insuranceVault && (
+                                <span className="text-xs bg-primary/20 text-primary border border-primary/50 px-2 py-1 rounded">Vault Access</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="bg-background p-4 rounded border border-secondary">
+                          <p className="text-sm text-gray-400 mb-2">Current Status</p>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-lg font-bold ${getRiskColor(alerts[selectedPosition]?.level || "Safe")}`}>
+                              {alerts[selectedPosition]?.level || "Safe"}
+                            </span>
+                            <button
+                              onClick={() => checkRisk(selectedPosition)}
+                              className="bg-secondary hover:bg-muted hover:text-white text-gray-200 py-2 px-4 rounded transition border border-gray-600"
+                            >
+                              Check Risk
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  ))
+                  </div>
                 )}
-              </div>
-            </div>
-            
-            {/* Demo Controls */}
-            <div className="bg-[#2C2337] p-6 rounded-lg shadow-lg border border-[#3D314A]">
-              <h2 className="text-2xl font-serif mb-4 text-white">Demo Controls</h2>
-              <p className="text-sm text-gray-300 mb-3">Simulate ETH Price Changes</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => simulatePrice(3200)}
-                  className="bg-green-600/20 border border-green-600/50 hover:bg-green-600 hover:text-white text-green-400 py-3 px-4 rounded-lg transition font-semibold"
-                >
-                  $3,200
-                </button>
-                <button
-                  onClick={() => simulatePrice(3000)}
-                  className="bg-[#3D314A] hover:bg-[#96705B] hover:text-[#1A1423] text-white py-3 px-4 rounded-lg transition font-semibold"
-                >
-                  $3,000
-                </button>
-                <button
-                  onClick={() => simulatePrice(2700)}
-                  className="bg-yellow-600/20 border border-yellow-600/50 hover:bg-yellow-600 hover:text-white text-yellow-400 py-3 px-4 rounded-lg transition font-semibold"
-                >
-                  $2,700
-                </button>
-                <button
-                  onClick={() => simulatePrice(2400)}
-                  className="bg-red-600/20 border border-red-600/50 hover:bg-red-600 hover:text-white text-red-400 py-3 px-4 rounded-lg transition font-semibold"
-                >
-                  $2,400
-                </button>
-              </div>
-            </div>
+              </main>
+              
+              {/* --- Sidebar --- */}
+              <aside className="lg:col-span-1 space-y-6">
+                
+                {/* Live Market Card */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <h2 className="text-2xl font-serif mb-4 text-white">Live Market</h2>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-400 uppercase tracking-wider">ETH-USD</p>
+                    <p className="text-5xl font-mono font-bold text-white my-4">
+                      {formatCurrency(livePrice)}
+                    </p>
+                    <div className="text-sm text-primary">
+                      Real-time via Somnia Streams
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Insurance Vault Card */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <h2 className="text-2xl font-serif mb-4 text-white">Insurance Vault</h2>
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-gray-400 uppercase tracking-wider">Vault Balance</p>
+                    <p className="text-4xl font-mono font-bold text-white my-3">
+                      {formatCurrency(MOCK_INSURANCE_VAULT)}
+                    </p>
+                    <div className="w-24 h-24 mx-auto mb-4 relative">
+                      <svg className="w-full h-full" viewBox="0 0 36 36">
+                        <path
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="var(--color-secondary)"
+                          strokeWidth="3"
+                        />
+                        <path
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="var(--color-primary)"
+                          strokeWidth="3"
+                          strokeDasharray="70, 100"
+                        />
+                        <text x="18" y="20.5" textAnchor="middle" fill="var(--color-primary)" fontSize="8" fontWeight="bold">70%</text>
+                      </svg>
+                    </div>
+                    <p className="text-sm text-gray-300">Protection Coverage</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="flex-1 bg-secondary text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
+                      Deposit
+                    </button>
+                    <button className="flex-1 bg-secondary text-white py-2 px-3 rounded opacity-50 cursor-not-allowed text-sm">
+                      Withdraw
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Alerts Panel */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <h2 className="text-2xl font-serif mb-4 text-white">Active Alerts</h2>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {Object.keys(alerts).length === 0 ? (
+                      <div className="text-center py-4">
+                        <div className="text-2xl mb-2">✅</div>
+                        <p className="text-base text-gray-400">No active alerts</p>
+                        <p className="text-sm text-gray-500">All positions are safe</p>
+                      </div>
+                    ) : (
+                      Object.entries(alerts).map(([posId, alert]) => (
+                        <div 
+                          key={posId} 
+                          className={`p-3 rounded-lg border-l-4 ${
+                            alert.level === "Critical" || alert.level === "Immediate Risk" 
+                              ? 'border-red-500 bg-red-900/20' 
+                              : alert.level === "Warning" 
+                              ? 'border-yellow-500 bg-yellow-900/20'
+                              : 'border-green-500 bg-green-900/20'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className={`font-bold ${
+                                alert.level === "Critical" || alert.level === "Immediate Risk" 
+                                  ? 'text-red-400' 
+                                  : alert.level === "Warning" 
+                                  ? 'text-yellow-400'
+                                  : 'text-green-400'
+                              }`}>
+                                {alert.level.toUpperCase()}
+                              </div>
+                              <p className="text-sm text-gray-200 mt-1">Position #{posId}</p>
+                            </div>
+                            <span className="text-xs text-gray-400">{alert.time}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                
+                {/* Demo Controls */}
+                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
+                  <h2 className="text-2xl font-serif mb-4 text-white">Demo Controls</h2>
+                  <p className="text-sm text-gray-300 mb-3">Simulate ETH Price Changes</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => simulatePrice(3200)}
+                      className="bg-green-600/20 border border-green-600/50 hover:bg-green-600 hover:text-white text-green-400 py-3 px-4 rounded-lg transition font-semibold"
+                    >
+                      $3,200
+                    </button>
+                    <button
+                      onClick={() => simulatePrice(3000)}
+                      className="bg-secondary hover:bg-muted hover:text-background text-white py-3 px-4 rounded-lg transition font-semibold"
+                    >
+                      $3,000
+                    </button>
+                    <button
+                      onClick={() => simulatePrice(2700)}
+                      className="bg-yellow-600/20 border border-yellow-600/50 hover:bg-yellow-600 hover:text-white text-yellow-400 py-3 px-4 rounded-lg transition font-semibold"
+                    >
+                      $2,700
+                    </button>
+                    <button
+                      onClick={() => simulatePrice(2400)}
+                      className="bg-red-600/20 border border-red-600/50 hover:bg-red-600 hover:text-white text-red-400 py-3 px-4 rounded-lg transition font-semibold"
+                    >
+                      $2,400
+                    </button>
+                  </div>
+                </div>
 
-          </aside>
+              </aside>
+            </div>
+          </div>
+
+          {/* Open Position Modal */}
+          <OpenPositionModal
+            isOpen={isOpenPositionModal}
+            onClose={() => setIsOpenPositionModal(false)}
+            onPositionOpened={openPosition}
+            livePrice={livePrice}
+            priceHistory={priceHistory}
+          />
         </div>
-      </div>
-
-      {/* Open Position Modal */}
-      <OpenPositionModal
-        isOpen={isOpenPositionModal}
-        onClose={() => setIsOpenPositionModal(false)}
-        onPositionOpened={openPosition}
-        livePrice={livePrice}
-      />
-    </div>
+      )}
+    </>
   );
 }
 
