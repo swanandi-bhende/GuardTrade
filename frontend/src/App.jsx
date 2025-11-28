@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-// import { SDK } from '@somnia-chain/streams'; // We are NOT using the SDK
-import { createPublicClient, http, defineChain, createWalletClient, custom } from 'viem';
-import { ethers } from 'ethers';
+// We use ESM imports for viem since local packages aren't available
+import { createPublicClient, http, defineChain, createWalletClient, custom, formatEther } from 'https://esm.sh/viem';
 
 // --- ABIs (Manually copy these from your artifacts/contracts/...) ---
-// I've pasted them here for you to make the hackathon setup faster.
-
 const PriceOracleABI = {
   abi: [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"asset","type":"string"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"PriceUpdate","type":"event"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"assetPrices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"}],"name":"getPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_asset","type":"string"},{"internalType":"uint256","name":"_price","type":"uint256"}],"name":"setPrice","outputs":[],"stateMutability":"nonpayable","type":"function"}]
 };
@@ -458,6 +455,9 @@ function App() {
   const [userName, setUserName] = useState('');
   const [balance, setBalance] = useState(0);
 
+  // New state to hold the "detected" wallet address before login completes
+  const [detectedAddress, setDetectedAddress] = useState(null);
+
   // Live Data State
   const [livePrice, setLivePrice] = useState(3000);
   const [positions, setPositions] = useState({});
@@ -484,10 +484,16 @@ function App() {
 
   const portfolioHealth = calculatePortfolioHealth();
 
-  // --- 2. INITIALIZE PUBLIC DATA (No Wallet Needed) ---
+  // --- 2. INITIALIZE AND AUTO-CONNECT ---
   useEffect(() => {
-    async function initPublicData() {
+    async function tryAutoConnect() {
+      if (!window.ethereum) {
+        setStatus('MetaMask not detected. Please install it.');
+        return;
+      }
+      
       try {
+        // Fetch initial price data
         const initialPrice = await publicClient.readContract({
           address: CONTRACT_ADDRESSES.oracle,
           abi: PriceOracleABI.abi,
@@ -495,38 +501,101 @@ function App() {
           args: ['ETH']
         });
         setLivePrice(Number(initialPrice) / 10**8);
-        setStatus('Ready to connect.');
-        
-        // Pre-fill username if available
-        const connectedAddresses = await window.ethereum?._metamask?.request({ method: 'eth_accounts' });
-        if (connectedAddresses && connectedAddresses.length > 0) {
-          const savedName = localStorage.getItem(connectedAddresses[0]);
-          if (savedName) {
-            setUserName(savedName);
-          }
-        }
 
+        // Check for already connected accounts without prompting
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        
+        if (accounts && accounts.length > 0) {
+          const accountAddress = accounts[0];
+          setDetectedAddress(accountAddress); // Store detected address
+
+          const savedName = localStorage.getItem(accountAddress);
+
+          if (savedName) {
+            // If we have a name for this account, let's auto-connect
+            setStatus('Restoring session...');
+            const { walletClient, accountAddress: connectedAddress } = await connectWallet(false); // false = don't prompt
+            setAccount(connectedAddress);
+            setWallet(walletClient);
+            setUserName(savedName);
+            setStatus('Wallet Connected! Subscribing to streams...');
+          } else {
+            // We have an account but no name, so just wait on the login page
+            setStatus('Wallet detected. Please enter a name to continue.');
+            setAccount(null); // Ensure we are in "Logged Out" state
+            setUserName('');
+          }
+        } else {
+          // No accounts found, user needs to connect manually
+          setStatus('Please connect your wallet.');
+        }
       } catch (err) {
-        console.error("Public init error:", err);
-        setStatus('Error loading public data. Check console.');
+        console.error("Auto-connect error:", err);
+        setStatus('Error during auto-connect. Please connect manually.');
       }
     }
-    initPublicData();
+    tryAutoConnect();
   }, []); // Runs once on load
+
 
   const handleConnect = async () => {
     if (!userName.trim()) {
       setStatus("Please enter a name to continue.");
       return;
     }
-    await connectWallet();
+    
+    try {
+        let walletClient, accountAddress;
+
+        // If we already detected an address, just connect to that one specifically
+        if (detectedAddress) {
+             walletClient = createWalletClient({
+                chain: somniaTestnet,
+                transport: custom(window.ethereum),
+                account: detectedAddress
+            });
+            accountAddress = detectedAddress;
+        } else {
+            // Otherwise, prompt user to connect/select
+            const result = await connectWallet(true); 
+            walletClient = result.walletClient;
+            accountAddress = result.accountAddress;
+        }
+
+        // Save the mapping: Address -> Name
+        localStorage.setItem(accountAddress, userName);
+        
+        setAccount(accountAddress);
+        setWallet(walletClient);
+        setStatus('Wallet Connected! Subscribing to streams...');
+    } catch(err) {
+        console.error("Login failed", err);
+        setStatus("Connection failed. Please try again.");
+    }
   };
 
-  // --- 3. WALLET FUNCTIONS (Connect & Disconnect) ---
-  const connectWallet = async () => {
+  const handleSwitchAccount = async () => {
+      if(!window.ethereum) return;
+
+      try {
+          // Force MetaMask to open the account picker
+          await window.ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }],
+          });
+          
+          // The 'accountsChanged' event listener will handle the rest
+      } catch (err) {
+          console.error("Switch account cancelled or failed", err);
+      }
+  };
+
+  // --- 3. WALLET CONNECTION LOGIC ---
+  const connectWallet = async (promptUser = false) => {
     if (!window.ethereum) {
-      setStatus('MetaMask not detected. Please install it.');
-      return;
+      const err = 'MetaMask not detected. Please install it.';
+      setStatus(err);
+      throw new Error(err);
     }
     
     setStatus('Connecting to MetaMask...');
@@ -536,17 +605,24 @@ function App() {
         transport: custom(window.ethereum),
       });
 
-      // This will prompt the user to connect.
-      const [accountAddress] = await walletClient.requestAddresses();
+      let accounts;
+      if (promptUser) {
+        accounts = await walletClient.requestAddresses();
+      } else {
+        accounts = await walletClient.getAddresses();
+      }
+
+      if (!accounts || accounts.length === 0) {
+        const err = 'Could not connect to account. Please try again.';
+        setStatus(err);
+        throw new Error(err);
+      }
       
-      setAccount(accountAddress);
-      setWallet(walletClient);
-      localStorage.setItem(accountAddress, userName);
-      
-      setStatus('Wallet Connected! Subscribing to streams...');
+      return { walletClient, accountAddress: accounts[0] };
     } catch (err) {
       console.error("Wallet connection error:", err);
       setStatus('Error connecting wallet. Check console.');
+      throw err;
     }
   };
 
@@ -554,6 +630,7 @@ function App() {
     setWallet(null);
     setAccount(null);
     setUserName('');
+    setDetectedAddress(null);
     setBalance(0);
     setPositions({});
     setAlerts({});
@@ -571,18 +648,28 @@ function App() {
         const newAccount = accounts[0];
         console.log("MetaMask account switched to:", newAccount);
         
-        // Update account and wallet client
-        setAccount(newAccount);
-        const newWalletClient = createWalletClient({
-          chain: somniaTestnet,
-          transport: custom(window.ethereum),
-          account: newAccount,
-        });
-        setWallet(newWalletClient);
-        
-        // Fetch username for the new account
+        setDetectedAddress(newAccount); // Always update detected address
+
         const savedName = localStorage.getItem(newAccount);
-        setUserName(savedName || ''); 
+
+        if (savedName) {
+            // Known account: Switch automatically
+            const newWalletClient = createWalletClient({
+                chain: somniaTestnet,
+                transport: custom(window.ethereum),
+                account: newAccount,
+            });
+            setWallet(newWalletClient);
+            setAccount(newAccount);
+            setUserName(savedName);
+        } else {
+            // Unknown account: Force Logout to Login Screen
+            console.log("New account detected without name. Redirecting to login.");
+            setWallet(null);
+            setAccount(null);
+            setUserName(''); // Clear name so user must enter new one
+            setStatus('New account detected. Please enter a name.');
+        }
 
       } else {
         console.log("MetaMask user disconnected.");
@@ -602,7 +689,8 @@ function App() {
     const fetchBalance = async () => {
       try {
         const balanceWei = await publicClient.getBalance({ address: account });
-        const balanceEth = Number(ethers.utils.formatEther(balanceWei));
+        // Use viem's formatEther instead of ethers
+        const balanceEth = Number(formatEther(balanceWei));
         setBalance(balanceEth);
       } catch (err) {
         console.error("Failed to fetch balance:", err);
@@ -878,8 +966,15 @@ function App() {
           {/* --- NEW: Name Input --- */}
           <div className="mb-6">
             <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
-              Enter Your Name to Continue
+              Enter Name for this Account
             </label>
+            
+            {detectedAddress && (
+                <div className="mb-4 p-3 bg-brand-darkest rounded border border-brand-gray-medium text-xs font-mono text-gray-400">
+                    Target Wallet: {detectedAddress}
+                </div>
+            )}
+
             <input
               id="userName"
               type="text"
@@ -891,13 +986,24 @@ function App() {
           </div>
           
           <p className="text-gray-400 mb-6 min-h-5 text-base">{status}</p>
-          <button
-            onClick={handleConnect}
-            disabled={!userName.trim()}
-            className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Connect Wallet & Enter
-          </button>
+          
+          <div className="space-y-3">
+            <button
+                onClick={handleConnect}
+                disabled={!userName.trim()}
+                className="w-full bg-brand-lightest hover:bg-brand-light text-brand-darkest font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {detectedAddress ? "Save Name & Enter" : "Connect Wallet & Enter"}
+            </button>
+            
+            <button
+                onClick={handleSwitchAccount}
+                className="w-full bg-transparent border border-gray-600 hover:bg-gray-800 text-gray-300 font-medium py-3 px-4 rounded-lg transition"
+            >
+                Switch Wallet
+            </button>
+          </div>
+
         </div>
       </div>
     );
@@ -921,7 +1027,7 @@ function App() {
               </div>
             </div>
             <button
-              onClick={connectWallet}
+              onClick={handleSwitchAccount}
               className="bg-brand-dark hover:bg-brand-gray-medium text-white text-base font-medium py-2 px-4 rounded-lg transition"
             >
               Switch Account
