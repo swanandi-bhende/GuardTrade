@@ -63,6 +63,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
   const [selectedAsset, setSelectedAsset] = useState('ETH');
   const [leverage, setLeverage] = useState(3);
   const [collateral, setCollateral] = useState(1000);
+  const [positionType, setPositionType] = useState(0); // 0 = Long, 1 = Short
   const [protectionSettings, setProtectionSettings] = useState({
     autoAddCollateral: true,
     partialReduce: false,
@@ -77,6 +78,8 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
       setSelectedAsset(initialData?.asset || 'ETH');
       setLeverage(initialData?.leverage || 3);
       setCollateral(initialData?.collateral || 1000);
+      // If initialData has type, use it, else default to 0 (Long)
+      setPositionType(initialData?.positionType !== undefined ? initialData.positionType : 0);
       setProtectionSettings({
         autoAddCollateral: true,
         partialReduce: false,
@@ -86,9 +89,23 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
     }
   }, [isOpen, initialData]);
 
+  // --- KEY METRIC CALCULATIONS ---
+  // 1. Position Size: The total value controlled by the user
   const positionSize = collateral * leverage;
-  const liquidationPrice = selectedAsset === 'ETH' ? livePrice * (1 - (1 / leverage)) : livePrice * 0.95; 
-  const distanceToLiquidation = ((livePrice - liquidationPrice) / livePrice) * 100;
+
+  // 2. Liquidation Price: The price at which the position is wiped out.
+  // Formula depends on Long vs Short.
+  // Long: Entry * (1 - 1/Leverage)
+  // Short: Entry * (1 + 1/Leverage)
+  let liquidationPrice = 0;
+  if (positionType === 0) { // Long
+    liquidationPrice = livePrice * (1 - (1 / leverage));
+  } else { // Short
+    liquidationPrice = livePrice * (1 + (1 / leverage));
+  }
+
+  // 3. Distance to Liquidation: Percentage move required to hit liquidation.
+  const distanceToLiquidation = Math.abs((livePrice - liquidationPrice) / livePrice) * 100;
 
   const riskLevel = distanceToLiquidation > 20 ? 'Safe' : 
                    distanceToLiquidation > 10 ? 'Warning' : 
@@ -98,7 +115,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-surface rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-secondary">
+      <div className="bg-surface rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-secondary">
         
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-secondary">
@@ -136,32 +153,62 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Column - Inputs */}
               <div className="space-y-6">
-                {/* Asset Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">Select Asset</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['ETH', 'BTC'].map(asset => (
-                      <button
-                        key={asset}
-                        onClick={() => setSelectedAsset(asset)}
-                        className={`p-4 rounded-lg border-2 text-center transition-all ${
-                          selectedAsset === asset 
-                            ? 'border-primary bg-primary/10 text-primary' 
-                            : 'border-secondary bg-background text-gray-400 hover:border-primary/50'
-                        }`}
-                      >
-                        <div className="text-lg font-bold">{asset}</div>
-                        <div className="text-sm opacity-80">Current: {formatCurrency(livePrice)}</div>
-                      </button>
-                    ))}
+                
+                {/* Asset & Type Selection */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Asset</label>
+                    <div className="flex gap-2">
+                      {['ETH', 'BTC'].map(asset => (
+                        <button
+                          key={asset}
+                          onClick={() => setSelectedAsset(asset)}
+                          className={`flex-1 p-3 rounded-lg border transition-all ${
+                            selectedAsset === asset 
+                              ? 'border-primary bg-primary/10 text-primary' 
+                              : 'border-secondary bg-background text-gray-400 hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="font-bold">{asset}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Position Type</label>
+                    <div className="flex gap-2">
+                       <button
+                          onClick={() => setPositionType(0)}
+                          className={`flex-1 p-3 rounded-lg border transition-all ${
+                            positionType === 0 
+                              ? 'border-green-500 bg-green-500/10 text-green-500' 
+                              : 'border-secondary bg-background text-gray-400 hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="font-bold">LONG</div>
+                        </button>
+                        <button
+                          onClick={() => setPositionType(1)}
+                          className={`flex-1 p-3 rounded-lg border transition-all ${
+                            positionType === 1 
+                              ? 'border-red-500 bg-red-500/10 text-red-500' 
+                              : 'border-secondary bg-background text-gray-400 hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="font-bold">SHORT</div>
+                        </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Leverage Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Leverage: <span className="text-primary font-bold">{leverage}x</span>
-                  </label>
+                  <div className="flex justify-between items-end mb-3">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Leverage
+                    </label>
+                    <span className="text-primary font-bold text-xl">{leverage}x</span>
+                  </div>
                   <div className="space-y-2">
                     <input
                       type="range"
@@ -173,11 +220,9 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
                       className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-xs text-gray-400">
-                      {[1, 3, 5, 7, 10].map(val => (
-                        <span key={val} className="cursor-pointer hover:text-primary" onClick={() => setLeverage(val)}>
-                          {val}x
-                        </span>
-                      ))}
+                      <span>1x</span>
+                      <span>5x</span>
+                      <span>10x</span>
                     </div>
                   </div>
                 </div>
@@ -185,7 +230,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
                 {/* Collateral Input */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Collateral Amount
+                    Collateral (Investment)
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-3 text-gray-400">$</span>
@@ -211,72 +256,103 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
                 </div>
               </div>
 
-              {/* Right Column - Live Preview */}
-              <div className="bg-background/50 rounded-lg p-6 border border-secondary">
-                <h3 className="text-lg font-semibold text-white mb-4">Position Preview</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Position Size</span>
-                    <span className="text-white font-mono">{formatCurrency(positionSize)}</span>
-                  </div>
+              {/* Right Column - Live Metrics */}
+              <div className="bg-background/50 rounded-lg p-6 border border-secondary flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-6">Trade Analysis</h3>
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Liquidation Price</span>
-                    <span className="text-red-400 font-mono font-bold">{formatCurrency(liquidationPrice)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Distance to Liq.</span>
-                    <span className={`font-mono font-bold ${
-                      riskLevel === 'Safe' ? 'text-green-400' :
-                      riskLevel === 'Warning' ? 'text-yellow-400' :
-                      riskLevel === 'Critical' ? 'text-orange-400' : 'text-red-400'
-                    }`}>
-                      {distanceToLiquidation.toFixed(1)}%
-                    </span>
-                  </div>
-
-                  {/* Risk Level Indicator */}
-                  <div className="mt-4 p-4 rounded-lg border border-secondary bg-background">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400">Risk Level</span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                        riskLevel === 'Safe' ? 'bg-green-500/20 text-green-400' :
-                        riskLevel === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                        riskLevel === 'Critical' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {riskLevel}
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          riskLevel === 'Safe' ? 'bg-green-500' :
-                          riskLevel === 'Warning' ? 'bg-yellow-500' :
-                          riskLevel === 'Critical' ? 'bg-orange-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.max(5, 100 - distanceToLiquidation)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Mini Chart Visualization */}
-                  <div className="mt-4 bg-background rounded p-3 border border-secondary">
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>Current: {formatCurrency(livePrice)}</span>
-                      <span>Liq: {formatCurrency(liquidationPrice)}</span>
-                    </div>
-                    <div className="relative h-16 bg-surface/30 rounded p-2">
-                      <div className="absolute inset-0 p-1">
-                        <Sparkline data={priceHistory?.ETH} height={60} width={300} />
+                  <div className="space-y-6">
+                    {/* Metric 1: Position Size */}
+                    <div className="group relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400 border-b border-dashed border-gray-600 cursor-help">Position Size</span>
+                        <span className="text-white font-mono text-lg">{formatCurrency(positionSize)}</span>
                       </div>
-                      <div className="absolute inset-0 flex items-center justify-center text-gray-300 text-sm pointer-events-none">
-                        <div className="text-center">
-                          <div>Price: {formatCurrency(livePrice)}</div>
-                          <div className="text-red-400/80 text-xs">Liq: {formatCurrency(liquidationPrice)}</div>
-                        </div>
+                      <p className="text-xs text-gray-500">
+                        Total purchasing power controlled (Collateral × Leverage).
+                      </p>
+                    </div>
+                    
+                    {/* Metric 2: Leverage */}
+                     <div className="group relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400 border-b border-dashed border-gray-600 cursor-help">Effective Leverage</span>
+                        <span className="text-primary font-mono text-lg">{leverage}x</span>
                       </div>
+                      <p className="text-xs text-gray-500">
+                        Multiplies your profit and loss exposure. High leverage increases risk.
+                      </p>
+                    </div>
+
+                    {/* Metric 3: Liquidation Price */}
+                    <div className="group relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400 border-b border-dashed border-gray-600 cursor-help">Liquidation Price</span>
+                        <span className="text-red-400 font-mono font-bold text-lg">{formatCurrency(liquidationPrice)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {positionType === 0 
+                          ? `If price drops to this level, you lose your collateral.` 
+                          : `If price rises to this level, you lose your collateral.`}
+                      </p>
+                    </div>
+                    
+                    {/* Metric 4: Distance to Liquidation */}
+                    <div className="group relative bg-secondary/30 p-3 rounded-lg border border-secondary">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-300 font-medium">Distance to Liq.</span>
+                        <span className={`font-mono font-bold text-xl ${
+                          riskLevel === 'Safe' ? 'text-green-400' :
+                          riskLevel === 'Warning' ? 'text-yellow-400' :
+                          riskLevel === 'Critical' ? 'text-orange-400' : 'text-red-400'
+                        }`}>
+                          {distanceToLiquidation.toFixed(2)}%
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">
+                        The {positionType === 0 ? "drop" : "rise"} in price required to trigger liquidation.
+                      </p>
+                      
+                      {/* Visual Bar */}
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            riskLevel === 'Safe' ? 'bg-green-500' :
+                            riskLevel === 'Warning' ? 'bg-yellow-500' :
+                            riskLevel === 'Critical' ? 'bg-orange-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${Math.max(5, Math.min(100, 100 - (distanceToLiquidation * 3)))}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                        <span>Safe</span>
+                        <span>Risk</span>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Mini Chart Visualization */}
+                <div className="mt-6 bg-background rounded p-3 border border-secondary">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
+                    <span>Current: {formatCurrency(livePrice)}</span>
+                    <span className="text-red-400">Liq: {formatCurrency(liquidationPrice)}</span>
+                  </div>
+                  <div className="relative h-20 bg-surface/30 rounded p-2 overflow-hidden">
+                    <div className="absolute inset-0 p-1 opacity-50">
+                      <Sparkline data={priceHistory?.ETH} height={70} width={300} />
+                    </div>
+                    {/* Liquidation Line Visualization */}
+                    <div 
+                        className="absolute w-full border-t border-red-500/50 border-dashed"
+                        style={{ 
+                            top: positionType === 0 
+                                ? '80%' // Visual approximation for Long (Liq is below)
+                                : '20%' // Visual approximation for Short (Liq is above)
+                        }}
+                    >
+                        <span className="absolute right-0 -top-3 text-[10px] text-red-500 bg-background/80 px-1">LIQ LEVEL</span>
                     </div>
                   </div>
                 </div>
@@ -382,8 +458,14 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
               <div className="bg-background rounded-lg p-6 max-w-md mx-auto border border-secondary">
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Asset</span>
-                    <span className="text-white">{selectedAsset}/USD</span>
+                    <span className="text-gray-400">Asset Pair</span>
+                    <span className="text-white font-bold">{selectedAsset}/USD</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Type</span>
+                    <span className={positionType === 0 ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
+                      {positionType === 0 ? "LONG" : "SHORT"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Leverage</span>
@@ -393,13 +475,14 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
                     <span className="text-gray-400">Collateral</span>
                     <span className="text-white">{formatCurrency(collateral)}</span>
                   </div>
+                  <div className="border-t border-secondary my-2 pt-2"></div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Position Size</span>
-                    <span className="text-white">{formatCurrency(positionSize)}</span>
+                    <span className="text-white font-mono">{formatCurrency(positionSize)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Liquidation Price</span>
-                    <span className="text-red-400">{formatCurrency(liquidationPrice)}</span>
+                    <span className="text-red-400 font-mono">{formatCurrency(liquidationPrice)}</span>
                   </div>
                 </div>
               </div>
@@ -429,6 +512,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
                   asset: selectedAsset,
                   leverage,
                   collateral,
+                  positionType,
                   protectionSettings
                 });
                 onClose();
@@ -814,7 +898,8 @@ function App() {
   const openPosition = async (positionData) => {
     if (!wallet || !account) return alert("Wallet not connected");
     
-    const { collateral, leverage, asset, protectionSettings } = positionData;
+    // Deconstruct with positionType
+    const { collateral, leverage, asset, positionType, protectionSettings } = positionData;
     
     setStatus("Opening position...");
     try {
@@ -826,7 +911,7 @@ function App() {
         args: [
           BigInt(Math.round(collateral * 10**8)), 
           BigInt(leverage), 
-          0 
+          positionType // Use the selected type (0 or 1)
         ]
       });
       const hash = await wallet.writeContract(request);
@@ -854,6 +939,7 @@ function App() {
         healthFactor: 1,
         id: Number(newPosId),
         asset: asset,
+        positionType: positionType, // Store type
         startDate: new Date().toLocaleString()
       };
 
@@ -924,7 +1010,8 @@ function App() {
     setModalInitialData({
       asset: historyItem.asset,
       leverage: historyItem.leverage,
-      collateral: historyItem.collateral
+      collateral: historyItem.collateral,
+      positionType: historyItem.positionType
     });
     setIsOpenPositionModal(true);
   };
@@ -978,14 +1065,24 @@ function App() {
   const getPnl = (position) => {
     if (!position.entryPrice) return 0;
     const size = (position.collateral * position.leverage) / position.entryPrice;
-    const pnl = (livePrice - position.entryPrice) * size;
-    return pnl;
+    
+    // Logic for PnL depends on Long (0) or Short (1)
+    if (position.positionType === 1) { // Short
+       return (position.entryPrice - livePrice) * size;
+    }
+    // Default Long
+    return (livePrice - position.entryPrice) * size;
   };
   
   const getLiqPrice = (position) => {
     if (!position.entryPrice || !position.leverage) return 0;
-    const liqPrice = position.entryPrice - (position.entryPrice / position.leverage);
-    return liqPrice;
+    
+    // Logic for Liq depends on Long/Short
+    if (position.positionType === 1) { // Short
+        return position.entryPrice * (1 + (1 / position.leverage));
+    }
+    // Long
+    return position.entryPrice * (1 - (1 / position.leverage));
   };
   
   const getRiskColor = (level) => {
@@ -1335,7 +1432,9 @@ function App() {
                                     >
                                         <td className="p-4">
                                         <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
-                                        <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
+                                        <div className={`text-sm font-bold ${pos.positionType === 1 ? 'text-red-400' : 'text-green-400'}`}>
+                                            {pos.leverage}x {pos.positionType === 1 ? 'SHORT' : 'LONG'}
+                                        </div>
                                         {posProtection?.autoAddCollateral && (
                                             <div className="text-xs text-primary mt-1 font-semibold">🛡️ Protected</div>
                                         )}
@@ -1410,7 +1509,9 @@ function App() {
                                             <tr key={idx} className="border-b border-secondary hover:bg-secondary transition">
                                                 <td className="p-4">
                                                     <div className="font-bold text-white">{item.asset || 'ETH'}/USD</div>
-                                                    <div className="text-sm text-gray-400">{item.leverage}x LONG</div>
+                                                    <div className={`text-sm font-bold ${item.positionType === 1 ? 'text-red-400' : 'text-green-400'}`}>
+                                                        {item.leverage}x {item.positionType === 1 ? 'SHORT' : 'LONG'}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-sm text-gray-300">
                                                     {item.closedAt}
@@ -1480,8 +1581,8 @@ function App() {
                           </div>
                           <div className="bg-background p-3 rounded border border-secondary">
                             <p className="text-sm text-gray-400">Leverage</p>
-                            <p className="text-lg font-bold text-primary">
-                              {selectedPositionData.leverage}x
+                            <p className={`text-lg font-bold ${selectedPositionData.positionType === 1 ? 'text-red-400' : 'text-green-400'}`}>
+                              {selectedPositionData.leverage}x {selectedPositionData.positionType === 1 ? 'SHORT' : 'LONG'}
                             </p>
                           </div>
                           <div className="bg-background p-3 rounded border border-secondary">
@@ -1493,7 +1594,7 @@ function App() {
                           <div className="bg-background p-3 rounded border border-secondary">
                             <p className="text-sm text-gray-400">Distance to Liq.</p>
                             <p className="text-lg font-bold text-red-400">
-                              {((livePrice - getLiqPrice(selectedPositionData)) / livePrice * 100).toFixed(1)}%
+                              {Math.abs((livePrice - getLiqPrice(selectedPositionData)) / livePrice * 100).toFixed(1)}%
                             </p>
                           </div>
                         </div>
