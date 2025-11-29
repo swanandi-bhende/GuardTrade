@@ -16,7 +16,7 @@ Try out the website here: https://guardtrade.vercel.app/
 
 
 ### 👉🏻 Demo Video
-Watch the full demo here: 
+Watch the full demo here: https://youtu.be/HTlahrVWK6U
 
 ---
 
