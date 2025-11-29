@@ -58,7 +58,7 @@ const MOCK_WALLET_BALANCE = 5000; // $5,000 in "Idle Funds"
 const MOCK_INSURANCE_VAULT = 2500; // $2,500 in "Insurance Vault"
 // ----------------------------------------
 
-const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, priceHistory }) => {
+const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, priceHistory, initialData }) => {
   const [step, setStep] = useState(1); 
   const [selectedAsset, setSelectedAsset] = useState('ETH');
   const [leverage, setLeverage] = useState(3);
@@ -73,9 +73,10 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setSelectedAsset('ETH');
-      setLeverage(3);
-      setCollateral(1000);
+      // Use initialData if provided (for Re-opening previous positions), otherwise defaults
+      setSelectedAsset(initialData?.asset || 'ETH');
+      setLeverage(initialData?.leverage || 3);
+      setCollateral(initialData?.collateral || 1000);
       setProtectionSettings({
         autoAddCollateral: true,
         partialReduce: false,
@@ -83,7 +84,7 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
         insuranceVault: true
       });
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   const positionSize = collateral * leverage;
   const liquidationPrice = selectedAsset === 'ETH' ? livePrice * (1 - (1 / leverage)) : livePrice * 0.95; 
@@ -101,7 +102,9 @@ const OpenPositionModal = ({ isOpen, onClose, onPositionOpened, livePrice, price
         
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-secondary">
-          <h2 className="text-2xl font-serif text-primary">Open New Position</h2>
+          <h2 className="text-2xl font-serif text-primary">
+            {initialData ? "Reinvest: Open Position" : "Open New Position"}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-primary text-2xl transition-colors">×</button>
         </div>
 
@@ -491,9 +494,12 @@ function App() {
 
   const [livePrice, setLivePrice] = useState(3000);
   const [positions, setPositions] = useState({});
+  const [history, setHistory] = useState([]); // State for closed positions
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const [alerts, setAlerts] = useState({});
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [isOpenPositionModal, setIsOpenPositionModal] = useState(false);
+  const [modalInitialData, setModalInitialData] = useState(null); // Data for re-opening
   const [protectionSettings, setProtectionSettings] = useState({});
 
   // Maintain a small in-memory price history per asset for sparklines
@@ -657,6 +663,7 @@ function App() {
     setDetectedAddress(null);
     setBalance(0);
     setPositions({});
+    setHistory([]);
     setAlerts({});
     setSelectedPosition(null);
     setStatus('Wallet disconnected. Please connect again.');
@@ -846,7 +853,8 @@ function App() {
         collateral: Number(posData.collateral) / 10**8,
         healthFactor: 1,
         id: Number(newPosId),
-        asset: asset
+        asset: asset,
+        startDate: new Date().toLocaleString()
       };
 
       setPositions(prev => ({
@@ -859,6 +867,8 @@ function App() {
         [Number(newPosId)]: protectionSettings
       }));
 
+      // Switch view back to active if opening a new one
+      setActiveTab('active');
       setSelectedPosition(Number(newPosId));
 
       setAlerts(prev => ({...prev, [Number(newPosId)]: {level: "Safe", time: new Date().toLocaleTimeString()}}))
@@ -868,6 +878,55 @@ function App() {
       alert("Error opening position: " + err.message);
       setStatus("Error opening position. Check console.");
     }
+  };
+
+  // Simulate Closing a Position and moving it to history
+  const handleClosePosition = (posId, e) => {
+    e.stopPropagation(); // Prevent row selection
+    if (!confirm("Are you sure you want to close this position?")) return;
+
+    const pos = positions[posId];
+    if (!pos) return;
+
+    const exitPrice = livePrice;
+    const pnl = getPnl(pos);
+    
+    const historyItem = {
+      ...pos,
+      exitPrice: exitPrice,
+      realizedPnl: pnl,
+      closedAt: new Date().toLocaleString()
+    };
+
+    // 1. Add to history
+    setHistory(prev => [historyItem, ...prev]);
+
+    // 2. Remove from active positions
+    setPositions(prev => {
+      const newPos = { ...prev };
+      delete newPos[posId];
+      return newPos;
+    });
+
+    // 3. Update mock balance (return collateral + pnl)
+    setBalance(prev => prev + pos.collateral + pnl);
+
+    if (selectedPosition === posId) {
+      setSelectedPosition(null);
+    }
+
+    setStatus(`Position #${posId} closed successfully.`);
+  };
+
+  // Prepare modal to reopen a position from history
+  const handleReopenPosition = (historyItem, e) => {
+    e.stopPropagation();
+    setModalInitialData({
+      asset: historyItem.asset,
+      leverage: historyItem.leverage,
+      collateral: historyItem.collateral
+    });
+    setIsOpenPositionModal(true);
   };
 
   const simulatePrice = async (newPrice) => {
@@ -1186,7 +1245,10 @@ function App() {
                 {/* Card 4: Quick Actions */}
                 <div className="bg-surface p-6 rounded-lg shadow-lg flex flex-col justify-center border border-secondary">
                   <button
-                    onClick={() => setIsOpenPositionModal(true)}
+                    onClick={() => {
+                        setModalInitialData(null);
+                        setIsOpenPositionModal(true);
+                    }}
                     className="w-full bg-primary hover:bg-accent2 text-background font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3 shadow-lg shadow-primary/20"
                   >
                     Open Protected Position
@@ -1200,104 +1262,185 @@ function App() {
             {/* --- Dashboard Layout (Main + Sidebar) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* --- Section 2: Active Positions (Main Column) --- */}
+              {/* --- Section 2: Positions (Main Column) --- */}
               <main className="lg:col-span-2 space-y-6">
                 
-                {/* Positions Table */}
-                <div>
-                  <h2 className="text-3xl font-serif mb-4 text-white">Active Positions</h2>
-                  <div className="bg-surface rounded-lg shadow-lg overflow-hidden border border-secondary">
-                    <table className="w-full text-left">
-                      <thead className="border-b border-secondary bg-background">
-                        <tr className="text-sm text-primary uppercase tracking-wider">
-                          <th className="p-4">Pair / Direction</th>
-                          <th className="p-4">Size / Entry</th>
-                          <th className="p-4">Live P&L</th>
-                          <th className="p-4">Liq. Price</th>
-                          <th className="p-4">Health Factor</th>
-                          <th className="p-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.keys(positions).length === 0 ? (
-                          <tr>
-                            <td colSpan="6" className="p-10 text-center text-gray-400">
-                              <p className="text-xl text-primary">No active positions.</p>
-                              <p className="text-base mt-2">
-                                Click "Open Protected Position" above to get started.
-                              </p>
-                            </td>
-                          </tr>
+                {/* Positions Table Container */}
+                <div className="bg-surface rounded-lg shadow-lg overflow-hidden border border-secondary">
+                    {/* Tabs */}
+                    <div className="flex border-b border-secondary">
+                        <button 
+                            onClick={() => setActiveTab('active')}
+                            className={`flex-1 py-4 text-center font-medium transition ${
+                                activeTab === 'active' 
+                                ? 'bg-secondary text-primary border-b-2 border-primary' 
+                                : 'bg-surface text-gray-400 hover:bg-secondary/50'
+                            }`}
+                        >
+                            Active Positions
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('history')}
+                            className={`flex-1 py-4 text-center font-medium transition ${
+                                activeTab === 'history' 
+                                ? 'bg-secondary text-primary border-b-2 border-primary' 
+                                : 'bg-surface text-gray-400 hover:bg-secondary/50'
+                            }`}
+                        >
+                            Position History
+                        </button>
+                    </div>
+
+                    {/* Table Content */}
+                    <div className="overflow-x-auto">
+                        {activeTab === 'active' ? (
+                            <table className="w-full text-left">
+                            <thead className="border-b border-secondary bg-background">
+                                <tr className="text-sm text-primary uppercase tracking-wider">
+                                <th className="p-4">Pair</th>
+                                <th className="p-4">Size / Entry</th>
+                                <th className="p-4">Live P&L</th>
+                                <th className="p-4">Liq. Price</th>
+                                <th className="p-4">Health</th>
+                                <th className="p-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.keys(positions).length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="p-10 text-center text-gray-400">
+                                    <p className="text-xl text-primary">No active positions.</p>
+                                    <p className="text-base mt-2">
+                                        Click "Open Protected Position" above to get started.
+                                    </p>
+                                    </td>
+                                </tr>
+                                ) : (
+                                Object.values(positions).map(pos => {
+                                    const pnl = getPnl(pos);
+                                    const liqPrice = getLiqPrice(pos);
+                                    const size = pos.collateral * pos.leverage;
+                                    const alert = alerts[pos.id] || {level: "Safe"};
+                                    const healthPercent = Math.max(0, pos.healthFactor * 100);
+                                    const isSelected = selectedPosition === pos.id;
+                                    const posProtection = protectionSettings[pos.id];
+                                    
+                                    return (
+                                    <tr 
+                                        key={pos.id} 
+                                        className={`border-b border-secondary hover:bg-secondary transition cursor-pointer ${
+                                        isSelected ? 'bg-secondary border-l-4 border-l-primary' : ''
+                                        }`}
+                                        onClick={() => setSelectedPosition(pos.id)}
+                                    >
+                                        <td className="p-4">
+                                        <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
+                                        <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
+                                        {posProtection?.autoAddCollateral && (
+                                            <div className="text-xs text-primary mt-1 font-semibold">🛡️ Protected</div>
+                                        )}
+                                        </td>
+                                        <td className="p-4 font-mono">
+                                        <div className="text-white">{formatCurrency(size)}</div>
+                                        <div className="text-sm text-gray-400">@{formatCurrency(pos.entryPrice)}</div>
+                                        </td>
+                                        <td className={`p-4 font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                                        <div className="text-xs text-gray-400">
+                                            {((pnl / (pos.collateral)) * 100).toFixed(1)}%
+                                        </div>
+                                        </td>
+                                        <td className="p-4 font-mono text-red-400 font-bold">
+                                        {formatCurrency(liqPrice)}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="w-full bg-background rounded-full h-2">
+                                                    <div
+                                                    className="h-2 rounded-full transition-all duration-300"
+                                                    style={{ 
+                                                        width: `${Math.min(100, healthPercent)}%`,
+                                                        background: healthPercent >= 70 ? 'linear-gradient(90deg, #10B981, #22C55E)' : 
+                                                                    healthPercent >= 40 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 
+                                                                    'linear-gradient(90deg, #EF4444, #DC2626)'
+                                                    }}
+                                                    ></div>
+                                                </div>
+                                                <span className={`text-xs font-bold ${getRiskBgColor(alert.level)} px-2 py-0.5 rounded-full inline-block text-center w-max`}>
+                                                    {alert.level}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <button 
+                                                onClick={(e) => handleClosePosition(pos.id, e)}
+                                                className="bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/50 px-3 py-1 rounded text-sm transition"
+                                            >
+                                                Close
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    );
+                                })
+                                )}
+                            </tbody>
+                            </table>
                         ) : (
-                          Object.values(positions).map(pos => {
-                            const pnl = getPnl(pos);
-                            const liqPrice = getLiqPrice(pos);
-                            const size = pos.collateral * pos.leverage;
-                            const alert = alerts[pos.id] || {level: "Safe"};
-                            const healthPercent = Math.max(0, pos.healthFactor * 100);
-                            const isSelected = selectedPosition === pos.id;
-                            const posProtection = protectionSettings[pos.id];
-                            
-                            return (
-                              <tr 
-                                key={pos.id} 
-                                className={`border-b border-secondary hover:bg-secondary transition cursor-pointer ${
-                                  isSelected ? 'bg-secondary border-l-4 border-l-primary' : ''
-                                }`}
-                                onClick={() => setSelectedPosition(pos.id)}
-                              >
-                                <td className="p-4">
-                                  <div className="font-bold text-white">{pos.asset || 'ETH'}/USD</div>
-                                  <div className="text-sm text-green-400">{pos.leverage}x LONG</div>
-                                  {posProtection?.autoAddCollateral && (
-                                    <div className="text-xs text-primary mt-1 font-semibold">🛡️ Protected</div>
-                                  )}
-                                </td>
-                                <td className="p-4 font-mono">
-                                  <div className="text-white">{formatCurrency(size)}</div>
-                                  <div className="text-sm text-gray-400">@{formatCurrency(pos.entryPrice)}</div>
-                                </td>
-                                <td className={`p-4 font-mono font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                  {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
-                                  <div className="text-xs text-gray-400">
-                                    {((pnl / (pos.collateral)) * 100).toFixed(1)}%
-                                  </div>
-                                </td>
-                                <td className="p-4 font-mono text-red-400 font-bold">
-                                  {formatCurrency(liqPrice)}
-                                </td>
-                                <td className="p-4">
-                                  <div className="w-full bg-background rounded-full h-4 mb-2">
-                                    <div
-                                      className="h-4 rounded-full transition-all duration-300"
-                                      style={{ 
-                                        width: `${Math.min(100, healthPercent)}%`,
-                                        background: healthPercent >= 70 ? 'linear-gradient(90deg, #10B981, #22C55E)' : 
-                                                   healthPercent >= 40 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 
-                                                   'linear-gradient(90deg, #EF4444, #DC2626)'
-                                      }}
-                                    ></div>
-                                  </div>
-                                  <div className={`text-sm font-mono ${getRiskColor(alert.level)}`}>
-                                    {healthPercent.toFixed(1)}%
-                                  </div>
-                                </td>
-                                <td className="p-4">
-                                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getRiskBgColor(alert.level)}`}>
-                                    {alert.level}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
+                            // HISTORY TABLE
+                            <table className="w-full text-left">
+                                <thead className="border-b border-secondary bg-background">
+                                    <tr className="text-sm text-primary uppercase tracking-wider">
+                                    <th className="p-4">Pair</th>
+                                    <th className="p-4">Closed Date</th>
+                                    <th className="p-4">Entry / Exit</th>
+                                    <th className="p-4">Realized P&L</th>
+                                    <th className="p-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="p-10 text-center text-gray-400">
+                                                <p className="text-xl text-primary">No history yet.</p>
+                                                <p className="text-base mt-2">Closed positions will appear here.</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        history.map((item, idx) => (
+                                            <tr key={idx} className="border-b border-secondary hover:bg-secondary transition">
+                                                <td className="p-4">
+                                                    <div className="font-bold text-white">{item.asset || 'ETH'}/USD</div>
+                                                    <div className="text-sm text-gray-400">{item.leverage}x LONG</div>
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-300">
+                                                    {item.closedAt}
+                                                </td>
+                                                <td className="p-4 font-mono">
+                                                    <div className="text-gray-300">In: {formatCurrency(item.entryPrice)}</div>
+                                                    <div className="text-gray-300">Out: {formatCurrency(item.exitPrice)}</div>
+                                                </td>
+                                                <td className={`p-4 font-mono font-bold ${item.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {item.realizedPnl >= 0 ? '+' : ''}{formatCurrency(item.realizedPnl)}
+                                                </td>
+                                                <td className="p-4">
+                                                    <button 
+                                                        onClick={(e) => handleReopenPosition(item, e)}
+                                                        className="bg-primary/10 hover:bg-primary hover:text-background text-primary border border-primary/50 px-3 py-1 rounded text-sm transition flex items-center gap-1"
+                                                    >
+                                                        <span>↺</span> Reinvest
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         )}
-                      </tbody>
-                    </table>
-                  </div>
+                    </div>
                 </div>
 
-                {/* Position Details & Chart Section */}
-                {selectedPositionData && (
+                {/* Position Details & Chart Section (Only for Active Positions) */}
+                {activeTab === 'active' && selectedPositionData && (
                   <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
                     <h2 className="text-2xl font-serif mb-4 text-white flex items-center">
                       Position Details #{selectedPosition}
@@ -1538,6 +1681,7 @@ function App() {
             onPositionOpened={openPosition}
             livePrice={livePrice}
             priceHistory={priceHistory}
+            initialData={modalInitialData}
           />
         </div>
       )}
