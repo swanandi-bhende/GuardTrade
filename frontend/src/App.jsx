@@ -589,6 +589,39 @@ function App() {
   // Maintain a small in-memory price history per asset for sparklines
   const [priceHistory, setPriceHistory] = useState({ ETH: [livePrice] });
 
+  // --- PERSISTENCE HELPER FUNCTIONS ---
+  const getStorageKey = (addr, key) => `guardtrade_${addr}_${key}`;
+
+  // Load data from localStorage when account changes
+  useEffect(() => {
+    if (account) {
+        try {
+            const savedPositions = localStorage.getItem(getStorageKey(account, 'positions'));
+            const savedHistory = localStorage.getItem(getStorageKey(account, 'history'));
+            const savedProtection = localStorage.getItem(getStorageKey(account, 'protectionSettings'));
+            const savedAlerts = localStorage.getItem(getStorageKey(account, 'alerts'));
+
+            if (savedPositions) setPositions(JSON.parse(savedPositions));
+            if (savedHistory) setHistory(JSON.parse(savedHistory));
+            if (savedProtection) setProtectionSettings(JSON.parse(savedProtection));
+            if (savedAlerts) setAlerts(JSON.parse(savedAlerts));
+        } catch (e) {
+            console.error("Failed to load data from storage", e);
+        }
+    }
+  }, [account]);
+
+  // Save data to localStorage whenever it changes
+  useEffect(() => {
+      if (account) {
+          localStorage.setItem(getStorageKey(account, 'positions'), JSON.stringify(positions));
+          localStorage.setItem(getStorageKey(account, 'history'), JSON.stringify(history));
+          localStorage.setItem(getStorageKey(account, 'protectionSettings'), JSON.stringify(protectionSettings));
+          localStorage.setItem(getStorageKey(account, 'alerts'), JSON.stringify(alerts));
+      }
+  }, [positions, history, protectionSettings, alerts, account]);
+  // ------------------------------------
+
   useEffect(() => {
     setPriceHistory(prev => {
       const list = (prev.ETH || []).concat([livePrice]).slice(-60); // keep last 60 samples
@@ -1254,7 +1287,7 @@ function App() {
             {/* --- Section 1: Global Portfolio Health --- */}
             <section className="mb-8">
               <h2 className="text-3xl font-serif mb-4 text-white">Global Portfolio</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Card 1: Total Value & Health */}
                 <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
@@ -1338,22 +1371,30 @@ function App() {
                     </div>
                   </div>
                 </div>
-                
-                {/* Card 4: Quick Actions */}
-                <div className="bg-surface p-6 rounded-lg shadow-lg flex flex-col justify-center border border-secondary">
-                  <button
-                    onClick={() => {
-                        setModalInitialData(null);
-                        setIsOpenPositionModal(true);
-                    }}
-                    className="w-full bg-primary hover:bg-accent2 text-background font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 text-lg mb-3 shadow-lg shadow-primary/20"
-                  >
-                    Open Protected Position
-                  </button>
-                  <p className="text-sm text-gray-400 text-center">Custom leverage & protection</p>
-                </div>
-
               </div>
+            </section>
+
+             {/* --- Trading Control Center (New Centered Section) --- */}
+             <section className="mb-10 flex justify-center">
+                <div className="bg-surface p-8 rounded-xl shadow-2xl border border-secondary w-full max-w-4xl text-center relative overflow-hidden">
+                    {/* Decorative Background Element */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-primary to-transparent opacity-50"></div>
+                    
+                    <h2 className="text-2xl font-serif text-white mb-2">Ready to Invest?</h2>
+                    <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
+                        Launch a new leveraged position wrapped in our smart Guardian contract. We automatically monitor your health factor and inject collateral from your Insurance Vault to prevent liquidation before it happens.
+                    </p>
+                    
+                    <button
+                        onClick={() => {
+                            setModalInitialData(null);
+                            setIsOpenPositionModal(true);
+                        }}
+                        className="bg-primary hover:bg-accent2 text-background font-bold py-4 px-10 rounded-full transition transform hover:scale-105 hover:shadow-lg hover:shadow-primary/30 text-lg border-2 border-primary/20"
+                    >
+                        + Open Protected Position
+                    </button>
+                </div>
             </section>
 
             {/* --- Dashboard Layout (Main + Sidebar) --- */}
@@ -1639,20 +1680,6 @@ function App() {
               
               {/* --- Sidebar --- */}
               <aside className="lg:col-span-1 space-y-6">
-                
-                {/* Live Market Card */}
-                <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
-                  <h2 className="text-2xl font-serif mb-4 text-white">Live Market</h2>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-400 uppercase tracking-wider">ETH-USD</p>
-                    <p className="text-5xl font-mono font-bold text-white my-4">
-                      {formatCurrency(livePrice)}
-                    </p>
-                    <div className="text-sm text-primary">
-                      Real-time via Somnia Streams
-                    </div>
-                  </div>
-                </div>
                 
                 {/* Insurance Vault Card */}
                 <div className="bg-surface p-6 rounded-lg shadow-lg border border-secondary">
